@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Idea Workbench</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: app shell with a top bar; two-column workbench (suggestions | workspace) that stacks on phones */
+:root{
+  --bg:#F4F3EF; --surface:#FDFDFB; --ink:#1B1D24; --muted:#5C6070; --line:#DEDCD4; --line-strong:#BDBAB0; --chip:#ECEAE3;
+  --accent:#3443B8; --accent-ink:#FDFDFB; --accent-soft:#E3E6F8; --accent-soft-ink:#24308A;
+  --card:#FFF4DE; --card-line:#E9C77B; --card-label:#7A4F00; --card-btn:#5A3B00;
+  --keep:#E7F1EE; --keep-line:#A9CFC5; --keep-ink:#1F5F54; --danger:#9A2E1C; --danger-soft:#FBEDEA;
+  --f-display:'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --f-body:'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#15161B; --surface:#1E2027; --ink:#ECEDF2; --muted:#A3A7B5; --line:#34363F; --line-strong:#4A4D58; --chip:#2A2C34;
+  --accent:#8E9BFF; --accent-ink:#12142A; --accent-soft:#262B4D; --accent-soft-ink:#C6CCFF;
+  --card:#33291A; --card-line:#6B5326; --card-label:#F2C46B; --card-btn:#F2C46B;
+  --keep:#19302B; --keep-line:#2F5A50; --keep-ink:#8FD3C2; --danger:#FF9C88; --danger-soft:#3A221E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#15161B; --surface:#1E2027; --ink:#ECEDF2; --muted:#A3A7B5; --line:#34363F; --line-strong:#4A4D58; --chip:#2A2C34;
+  --accent:#8E9BFF; --accent-ink:#12142A; --accent-soft:#262B4D; --accent-soft-ink:#C6CCFF;
+  --card:#33291A; --card-line:#6B5326; --card-label:#F2C46B; --card-btn:#F2C46B;
+  --keep:#19302B; --keep-line:#2F5A50; --keep-ink:#8FD3C2; --danger:#FF9C88; --danger-soft:#3A221E; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;line-height:1.15}
+p{margin:0}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1360px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+.topbar{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top, 0px);z-index:5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top, 0px);z-index:10;background:var(--surface)}
+.topbar .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-block:12px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:700;font-size:18px;background:none;border:0;padding:0}
+.steps{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0;font-size:13px;font-weight:600}
+.steps li{padding:7px 12px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.steps li.done{background:var(--accent-soft);color:var(--accent-soft-ink);border-color:transparent}
+.steps li.now{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.meta{display:flex;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap}
+.pill{padding:5px 10px;border-radius:8px;background:var(--chip);font-weight:600}
+.muted{color:var(--muted)}
+.tnum{font-variant-numeric:tabular-nums}
+main{padding-block:28px 48px}
+.cols{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.side{flex:1 1 320px;max-width:420px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.mainc{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:18px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent)}
+.lead{font-size:16px;color:var(--muted);max-width:62ch}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:10px;border:1px solid transparent;font-weight:600;font-size:14px;text-decoration:none}
+.btn-primary{background:var(--accent);color:var(--accent-ink)}
+.btn-outline{background:var(--surface);border-color:var(--accent);color:var(--accent)}
+.btn-ghost{background:transparent;border-color:var(--line-strong);color:var(--ink)}
+.btn-dashed{background:transparent;border:1.5px dashed var(--line-strong);color:var(--ink)}
+.btn-dark{background:var(--ink);color:var(--bg)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.between{justify-content:space-between}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label,.flabel{font-size:13px;font-weight:600}
+.input,.area{width:100%;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);padding:12px 14px;font-size:15px}
+.input{min-height:46px}
+.area{min-height:120px;resize:vertical;line-height:1.55}
+.area.focus{border-color:var(--accent);border-width:1.5px}
+.brief{font-size:18px;font-weight:600;line-height:1.45}
+.ideas{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ideas li{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:12px}
+.num{flex:none;width:26px;height:26px;border-radius:999px;background:var(--accent-soft);color:var(--accent-soft-ink);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+.tag{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;padding:4px;border-radius:12px;background:var(--chip);gap:4px}
+.seg button{flex:1;min-height:42px;border-radius:9px;border:0;background:transparent;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.seg button[disabled]{opacity:.5;cursor:not-allowed}
+.note{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:10px;background:var(--chip);font-size:13px;line-height:1.45}
+.sug{background:var(--card);border:1px solid var(--card-line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.sug.active{border:2px solid var(--ink);padding:15px}
+.sug .lbl{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--card-label)}
+.sug h3{font-family:var(--f-body);font-size:17px}
+.sug .acts{display:flex;gap:8px;flex-wrap:wrap;padding-top:4px}
+.btn-card{background:transparent;border-color:var(--card-line);color:var(--card-btn)}
+.twists{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.twists legend{font-weight:600;margin-bottom:8px}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;cursor:pointer}
+.opt:has(input:checked){border:2px solid var(--accent);padding:11px 13px}
+.opt input{margin-top:3px;width:18px;height:18px;accent-color:var(--accent)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{min-height:42px;padding:0 16px;border-radius:999px;border:1px solid var(--line-strong);background:transparent;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px}
+.tab.done{background:var(--accent-soft);color:var(--accent-soft-ink);border-color:transparent}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chipbtn{min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:var(--bg);font-size:13px}
+.recap{padding:12px 14px;border-radius:10px;background:var(--bg);font-size:14px}
+.keep{padding:12px 14px;border-radius:10px;background:var(--keep);border:1px solid var(--keep-line);font-size:14px}
+.keep b{color:var(--keep-ink)}
+.from{padding:12px 14px;border-radius:10px;background:var(--card);border:1px solid var(--card-line);font-size:14px}
+.from b{color:var(--card-label)}
+.vers{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px}
+.vchip{min-height:30px;padding:0 10px;border-radius:999px;border:0;background:var(--chip);font-weight:600;font-size:13px}
+.vchip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.empty{align-items:center;text-align:center;padding:36px 24px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%;max-width:720px;text-align:left}
+.mini{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:4px}
+.mini b{color:var(--accent)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.status{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom, 0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:860px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-top:1px solid var(--line)}
+thead th{background:var(--chip);border-top:0;font-weight:700}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-weight:600;font-size:12px}
+.b-good{background:var(--keep);color:var(--keep-ink)}
+.b-bad{background:var(--card);color:var(--card-label)}
+.okc{color:var(--keep-ink);font-weight:600}
+.setup-grid{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.setup-grid > *{flex:1 1 340px;min-width:0}
+.plan{background:var(--card);border:1px solid var(--card-line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:10px}
+.plan .lbl{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--card-label)}
+.plan h2{font-size:22px}
+.planline{font-size:16px}
+.plan .k{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--card-label);margin-bottom:4px}
+.plan-body{display:flex;flex-wrap:wrap;gap:20px;padding-top:12px;border-top:1px solid var(--card-line)}
+.plan-text{flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:14px;font-size:14px}
+.plan-text ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.phone-wrap{flex:0 0 auto;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:6px}
+.phone{width:220px;max-width:100%;height:430px;border:9px solid var(--ink);border-radius:30px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column;padding:16px 14px 14px;gap:10px;font-size:12px;position:relative;color:var(--ink)}
+.ph-head{display:flex;flex-direction:column;gap:2px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.ph-app{font-weight:700;font-size:14px}
+.ph-sub{font-size:11px;color:var(--muted)}
+.ph-icon{display:flex;justify-content:center;color:var(--accent);margin-top:14px}
+.ph-big{font-family:var(--f-display);font-size:28px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+.ph-meter{height:8px;border-radius:99px;background:var(--chip);overflow:hidden;flex:none}
+.ph-meter i{display:block;height:100%;background:var(--accent)}
+.ph-rows{display:flex;flex-direction:column;gap:6px}
+.ph-row{display:flex;justify-content:space-between;gap:8px;padding:7px 9px;border:1px solid var(--line);border-radius:8px}
+.ph-row b{font-weight:600}
+.ph-bar{display:grid;grid-template-columns:38px 1fr 22px;align-items:center;gap:6px}
+.ph-cap{font-size:11.5px;color:var(--muted);text-align:center;line-height:1.4}
+.ph-btn{margin-top:auto;text-align:center;padding:9px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:600}
+.ph-btn.off{background:var(--chip);color:var(--muted)}
+.ph-pop{position:absolute;left:12px;right:12px;top:170px;background:var(--ink);color:var(--bg);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:4px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.ph-live{position:relative;flex:0 0 170px;border-radius:10px;background:var(--ink);color:var(--line-strong);display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.scr-nav{display:flex;align-items:center;gap:6px;width:240px;max-width:100%}
+.scr-arrow{flex:none;width:36px;height:36px;border-radius:999px;border:1px solid var(--card-line);background:var(--surface);font-size:20px;line-height:1;color:var(--ink)}
+.scr-arrow[disabled]{opacity:.35;cursor:default}
+.scr-chips{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.scr-chip{min-height:30px;padding:4px 8px;border-radius:8px;border:1px solid transparent;background:transparent;font-size:12px;text-align:left;color:var(--card-label);font-weight:600}
+.scr-chip[aria-pressed="true"]{background:var(--surface);border-color:var(--card-line);color:var(--ink)}
+.ph-livepill{position:absolute;top:8px;left:8px;background:var(--danger);color:var(--surface);font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:.6px}
+@media (max-width:640px){.grid3,.grid2{grid-template-columns:1fr}.panel{padding:18px}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+/* ---------- content: tasks and the fixed card pool ---------- */
+var TASKS = {
+  t1:{short:"Task 1 · Individual project", text:"Design a phone feature that helps university students stay focused while studying, while keeping them in control of when and how they use it."},
+  t2:{short:"Task 2 · Group project", text:"Design a phone feature that helps university students finish group projects, while giving every member a say in roles and progress."}
+};
+var TWISTS = {
+  exaggerate:{label:"Push it to the extreme", hint:"Too much, too often, too far.", rname:"Exaggerate"},
+  control:{label:"Flip who decides", hint:"Someone else makes the call.", rname:"Take control"},
+  impractical:{label:"Make it unrealistic", hint:"Assume something that can't really exist.", rname:"Impractical"}
+};
+var CARDS = [
+  {id:"B-01",task:"t1",type:"bad",d:"exaggerate",from:"G-01",title:"Total Lockdown",text:"When a session starts, every phone function locks, including calls, for six hours."},
+  {id:"B-02",task:"t1",type:"bad",d:"control",from:"G-01",title:"Professor Mode",text:"Your professor schedules your focus sessions and starts them remotely."},
+  {id:"B-03",task:"t1",type:"bad",d:"impractical",from:"G-01",title:"Focus Band",text:"A brain-wave wristband notices when your attention drifts and pauses your phone."},
+  {id:"B-04",task:"t1",type:"bad",d:"exaggerate",from:"G-02",title:"Constant Recap",text:"A recap pops up every two minutes during the session to report your focus."},
+  {id:"B-05",task:"t1",type:"bad",d:"control",from:"G-02",title:"Parent Report",text:"Your focus recap goes to your parents, who decide whether you studied enough."},
+  {id:"B-06",task:"t1",type:"bad",d:"impractical",from:"G-02",title:"Stillness Chair",text:"A sensor in your desk chair measures how still you sat and turns it into your focus score."},
+  {id:"B-07",task:"t1",type:"bad",d:"exaggerate",from:"G-03",title:"Buddy Livestream",text:"Your friend watches a live video of you for the entire session."},
+  {id:"B-08",task:"t1",type:"bad",d:"control",from:"G-03",title:"Buddy Lock",text:"Your friend decides when your session can end, and you cannot stop it yourself."},
+  {id:"B-09",task:"t1",type:"bad",d:"impractical",from:"G-03",title:"Instant Campus Match",text:"Every student on campus is matched in real time with a study partner in the same building."},
+  {id:"B-10",task:"t1",type:"bad",d:"exaggerate",from:"G-04",title:"Semester Blackout",text:"Whenever you study, all notifications are deleted for the rest of the semester."},
+  {id:"B-11",task:"t1",type:"bad",d:"control",from:"G-04",title:"App Decides",text:"The app decides on its own which messages you may see, and you cannot change it."},
+  {id:"B-12",task:"t1",type:"bad",d:"impractical",from:"G-04",title:"Mind-Read Filter",text:"Your phone reads your mind to know which notifications you would actually want."},
+  {id:"B-21",task:"t2",type:"bad",d:"exaggerate",from:"G-11",title:"Micro-Task Flood",text:"The project is split into hundreds of tiny tasks, and each member must claim twenty a day."},
+  {id:"B-22",task:"t2",type:"bad",d:"control",from:"G-11",title:"Leader Assigns",text:"The group leader assigns every task, and no one else can change it."},
+  {id:"B-23",task:"t2",type:"bad",d:"impractical",from:"G-11",title:"Auto-Split From Chats",text:"An AI reads every message members have ever sent and splits the work perfectly by skill."},
+  {id:"B-24",task:"t2",type:"bad",d:"exaggerate",from:"G-12",title:"Hourly Check-In",text:"Everyone must update the board every hour, day and night, or the whole group is alerted."},
+  {id:"B-25",task:"t2",type:"bad",d:"control",from:"G-12",title:"AI Judge",text:"An AI scores each member's contribution, and members cannot question the score."},
+  {id:"B-26",task:"t2",type:"bad",d:"impractical",from:"G-12",title:"Smart Pens",text:"Smart pens track how much each member actually writes to measure contribution."},
+  {id:"B-27",task:"t2",type:"bad",d:"exaggerate",from:"G-13",title:"Daily Marathon",text:"The app books a two-hour group meeting every single day until the project ends."},
+  {id:"B-28",task:"t2",type:"bad",d:"control",from:"G-13",title:"Instructor Schedules",text:"The instructor sets all group meeting times, and students cannot reschedule."},
+  {id:"B-29",task:"t2",type:"bad",d:"impractical",from:"G-13",title:"Timetable Rewrite",text:"The app rearranges everyone's classes so all members are always free at the same time."},
+  {"id":"t1-b01-exaggerate","task":"t1","type":"bad","d":"exaggerate","from":"t1-b01","title":"Break Siren","text":"Each break starts and ends with a siren loud enough to wake your whole floor.","src":"Track A"},
+  {"id":"t1-b01-control","task":"t1","type":"bad","d":"control","from":"t1-b01","title":"Coach Picks Breaks","text":"An AI coach decides when you study and when you rest, and your own timer settings are ignored.","src":"Track A"},
+  {"id":"t1-b01-impractical","task":"t1","type":"bad","d":"impractical","from":"t1-b01","title":"Snack From Nowhere","text":"When each break starts, a fresh snack you like appears beside your phone out of thin air.","src":"Track A"},
+  {"id":"t1-b02-exaggerate","task":"t1","type":"bad","d":"exaggerate","from":"t1-b02","title":"Fourteen-Hour Flip","text":"Every flip starts a fourteen-hour study timer, the shortest length the app offers.","src":"Track A"},
+  {"id":"t1-b02-control","task":"t1","type":"bad","d":"control","from":"t1-b02","title":"RA Sets the Timer","text":"Your residence hall RA sets the length of every flip timer, replacing the one you chose.","src":"Track A"},
+  {"id":"t1-b02-impractical","task":"t1","type":"bad","d":"impractical","from":"t1-b02","title":"Silent Building","text":"Flipping your phone face down makes every noise in the building disappear until you flip it back.","src":"Track A"},
+  {"id":"t1-b03-control","task":"t1","type":"bad","d":"control","from":"t1-b03","title":"Library Picks Sound","text":"The campus library chooses what sound plays on your phone while you study, and you cannot switch it off.","src":"Track A"},
+  {"id":"t1-b03-impractical","task":"t1","type":"bad","d":"impractical","from":"t1-b03","title":"Dream Soundtrack","text":"The app composes music directly inside your head that perfectly matches the topic you are studying.","src":"Track A"},
+  {"id":"t1-b04-control","task":"t1","type":"bad","d":"control","from":"t1-b04","title":"Advisor Colors","text":"Your academic advisor decides when your screen turns gray and when you earn colors back.","src":"Track A"},
+  {"id":"t1-b04-impractical","task":"t1","type":"bad","d":"impractical","from":"t1-b04","title":"Gray Room","text":"Turning on grayscale also turns the whole room gray, so nothing around you looks tempting either.","src":"Track A"},
+  {"id":"t1-b05-exaggerate","task":"t1","type":"bad","d":"exaggerate","from":"t1-b05","title":"Thought Paperwork","text":"Parking a thought means filling in a full one-page form about it before you go back to studying.","src":"Track A"},
+  {"id":"t1-b05-control","task":"t1","type":"bad","d":"control","from":"t1-b05","title":"AI Thought Sorter","text":"The AI decides which of your parked thoughts are worth keeping and deletes the rest without asking.","src":"Track A"},
+  {"id":"t1-b05-impractical","task":"t1","type":"bad","d":"impractical","from":"t1-b05","title":"Thought Twin","text":"A second copy of you appears and works through your parked thoughts while you keep studying.","src":"Track A"},
+  {"id":"t1-b06-control","task":"t1","type":"bad","d":"control","from":"t1-b06","title":"Dean's Goal","text":"The dean's office sets your daily study goal for you, in place of the one you chose.","src":"Track A"},
+  {"id":"t1-b06-impractical","task":"t1","type":"bad","d":"impractical","from":"t1-b06","title":"Time Bank","text":"Unused study minutes are saved and can be spent later to add extra hours to a single day.","src":"Track A"},
+  {"id":"t1-b07-control","task":"t1","type":"bad","d":"control","from":"t1-b07","title":"Campus Maps You","text":"The university decides which places count as your study spots and starts focus mode when you arrive.","src":"Track A"},
+  {"id":"t1-b08-exaggerate","task":"t1","type":"bad","d":"exaggerate","from":"t1-b08","title":"Snapshot Every Line","text":"The gallery asks for a photo of your notes after every single line you write.","src":"Track A"},
+  {"id":"t1-b08-control","task":"t1","type":"bad","d":"control","from":"t1-b08","title":"TA Picks Snapshots","text":"Your TA reviews each snapshot and decides which sessions count in your weekly gallery.","src":"Track A"},
+  {"id":"t1-b08-impractical","task":"t1","type":"bad","d":"impractical","from":"t1-b08","title":"Tidy Snap","text":"Taking a snapshot of your desk instantly tidies the real desk and the whole room.","src":"Track A"},
+  {"id":"t1-b09-control","task":"t1","type":"bad","d":"control","from":"t1-b09","title":"Sibling Approves","text":"Your younger sibling must approve each time you want to open a flagged app.","src":"Track A"},
+  {"id":"t1-b09-impractical","task":"t1","type":"bad","d":"impractical","from":"t1-b09","title":"Brick Pause","text":"During the pause, your phone turns into a solid brick for exactly the seconds you chose.","src":"Track A"},
+  {"id":"t1-b10-exaggerate","task":"t1","type":"bad","d":"exaggerate","from":"t1-b10","title":"Minute Planner","text":"You plan tomorrow in one-minute blocks covering all twenty-four hours, including sleep and meals.","src":"Track A"},
+  {"id":"t1-b10-control","task":"t1","type":"bad","d":"control","from":"t1-b10","title":"Planner Takes Over","text":"The app writes your study plan every night and moves your blocks whenever it thinks best.","src":"Track A"},
+  {"id":"t1-b10-impractical","task":"t1","type":"bad","d":"impractical","from":"t1-b10","title":"Future Preview","text":"The app shows a video of how tomorrow will actually go so you can plan around it.","src":"Track A"},
+  {"id":"t2-b01-exaggerate","task":"t2","type":"bad","d":"exaggerate","from":"t2-b01","title":"Rotation Every Hour","text":"Roles rotate every hour, so each member switches jobs about ten times a day.","src":"Track A"},
+  {"id":"t2-b01-control","task":"t2","type":"bad","d":"control","from":"t2-b01","title":"Top Grade Decides","text":"The member with the highest GPA decides each week's roles for everyone.","src":"Track A"},
+  {"id":"t2-b01-impractical","task":"t2","type":"bad","d":"impractical","from":"t2-b01","title":"Skill Download","text":"Each new role's skills download straight into the member's brain the moment they take it.","src":"Track A"},
+  {"id":"t2-b02-exaggerate","task":"t2","type":"bad","d":"exaggerate","from":"t2-b02","title":"Keystroke Versions","text":"Every single keystroke saves a new file version, filling the folder with millions of copies.","src":"Track A"},
+  {"id":"t2-b02-control","task":"t2","type":"bad","d":"control","from":"t2-b02","title":"IT Approves Files","text":"Campus IT reviews each upload and decides which files the group is allowed to keep.","src":"Track A"},
+  {"id":"t2-b03-control","task":"t2","type":"bad","d":"control","from":"t2-b03","title":"Professor Reads All","text":"Concerns go straight to the professor, who decides what the group must change.","src":"Track A"},
+  {"id":"t2-b03-impractical","task":"t2","type":"bad","d":"impractical","from":"t2-b03","title":"Painted Concerns","text":"Each anonymous concern instantly appears painted on the wall of every member's room.","src":"Track A"},
+  {"id":"t2-b04-exaggerate","task":"t2","type":"bad","d":"exaggerate","from":"t2-b04","title":"Kudos Quota","text":"Each member must send fifty thank-you notes to teammates every day.","src":"Track A"},
+  {"id":"t2-b04-control","task":"t2","type":"bad","d":"control","from":"t2-b04","title":"Leader Grants Kudos","text":"Only the group leader can give thank-you notes and decides who deserves them.","src":"Track A"},
+  {"id":"t2-b05-exaggerate","task":"t2","type":"bad","d":"exaggerate","from":"t2-b05","title":"Poll Everything","text":"Every sentence in the report must be approved by a separate group poll before it is added.","src":"Track A"},
+  {"id":"t2-b05-control","task":"t2","type":"bad","d":"control","from":"t2-b05","title":"App Overrules Polls","text":"The app picks the winning option of every poll by itself, no matter how members voted.","src":"Track A"},
+  {"id":"t2-b06-control","task":"t2","type":"bad","d":"control","from":"t2-b06","title":"Parents Write Charter","text":"Members' parents write the team agreement, and students must follow it as written.","src":"Track A"},
+  {"id":"t2-b06-impractical","task":"t2","type":"bad","d":"impractical","from":"t2-b06","title":"No-Conflict Charter","text":"Once signed, the charter makes it impossible for members to ever disagree with each other.","src":"Track A"},
+  {"id":"t2-b07-exaggerate","task":"t2","type":"bad","d":"exaggerate","from":"t2-b07","title":"Two-Hour Memo","text":"Each voice update must be at least two hours long.","src":"Track A"},
+  {"id":"t2-b07-control","task":"t2","type":"bad","d":"control","from":"t2-b07","title":"AI Summarizes Voices","text":"An AI rewrites each member's voice update and decides what the group gets to hear.","src":"Track A"},
+  {"id":"t2-b07-impractical","task":"t2","type":"bad","d":"impractical","from":"t2-b07","title":"Echo Updates","text":"Voice updates travel as real echoes that follow each teammate around campus until heard.","src":"Track A"},
+  {"id":"t2-b08-exaggerate","task":"t2","type":"bad","d":"exaggerate","from":"t2-b08","title":"Swap Marathon","text":"Every draft must be swapped and reviewed by every member twelve times before it can be shared.","src":"Track A"},
+  {"id":"t2-b08-control","task":"t2","type":"bad","d":"control","from":"t2-b08","title":"App Pairs Partners","text":"The app chooses review partners and deadlines, and members cannot switch or decline.","src":"Track A"},
+  {"id":"t2-b09-exaggerate","task":"t2","type":"bad","d":"exaggerate","from":"t2-b09","title":"Countdown Siren","text":"The countdown flashes and beeps on every member's lock screen every second until the deadline.","src":"Track A"},
+  {"id":"t2-b09-impractical","task":"t2","type":"bad","d":"impractical","from":"t2-b09","title":"Slow-Time Slider","text":"Members drag a slider to slow down time itself before each milestone.","src":"Track A"},
+  {"id":"t2-b10-control","task":"t2","type":"bad","d":"control","from":"t2-b10","title":"Meter Reassigns","text":"When the meter looks uneven, the app moves tasks between members on its own.","src":"Track A"},
+  {"id":"t2-b10-impractical","task":"t2","type":"bad","d":"impractical","from":"t2-b10","title":"Effort Sensor","text":"The meter measures exactly how hard each member's brain worked on the project.","src":"Track A"}
+];
+var CARD = {}; CARDS.forEach(function(c){CARD[c.id]=c;});
+var PLANS = {
+  "B-01":{who:"Students who keep picking up their phone during study time.",steps:["You tap Start Focus.","Every phone function locks for six hours, including calls and texts.","The lock cannot be ended early, even in an emergency."],moment:"Before a Saturday study block, you start a session at noon and get your phone back at 6 pm."},
+  "B-02":{who:"Students in courses with heavy reading loads.",steps:["Your professor sees a study calendar for the whole class.","They schedule focus sessions for each student.","Sessions start on your phone remotely, and you cannot move or skip them."],moment:"Tuesday at 7 pm your phone switches into focus mode because your professor scheduled it."},
+  "B-03":{who:"Students who lose focus without noticing.",steps:["You wear a wristband that reads your brain waves.","It detects the moment your attention drifts.","Your phone pauses every app until your focus comes back."],moment:"Halfway through a chapter your mind wanders, and your phone freezes before you reach for it."},
+  "B-04":{who:"Students who want feedback on how focused they are.",steps:["You start a focus session.","Every two minutes a recap pops up with your focus so far.","You must dismiss each recap before you can keep studying."],moment:"During a one-hour session you close thirty recaps."},
+  "B-05":{who:"First-year students living away from home.",steps:["The app tracks every study session.","A weekly report goes to your parents.","Your parents decide whether you studied enough and can add required sessions."],moment:"On Sunday your parents read your report and add two extra sessions for the week."},
+  "B-06":{who:"Students who study at a desk.",steps:["A sensor is built into every desk chair on campus.","It measures how still you sit while studying.","After each session your phone turns that stillness into a focus score."],moment:"After two hours in the library, your phone shows a focus score based on how still you sat."},
+  "B-07":{who:"Students who study better with a friend around.",steps:["You pick a study buddy.","When you start a session, your camera streams live video to them.","The stream runs for the whole session so they can see if you are working."],moment:"Your roommate watches you study for three hours from the next room."},
+  "B-08":{who:"Students who quit sessions too early.",steps:["You pick a study buddy.","You start a focus session.","Only your buddy can end it, so you have to ask them to unlock your phone."],moment:"You finish your reading early but wait forty minutes for your friend to reply and unlock you."},
+  "B-09":{who:"Students who study alone and get distracted.",steps:["The app knows where every student on campus is in real time.","It instantly pairs you with someone studying in the same building.","You both start a session together."],moment:"You sit down in the library and are matched with a stranger two floors up within a second."},
+  "B-10":{who:"Students overwhelmed by notifications.",steps:["You start a study session.","All notifications are deleted, not paused.","The deletion lasts for the rest of the semester."],moment:"You study once in September and miss every group chat message until December."},
+  "B-11":{who:"Students who get distracted by messages.",steps:["During a session, the app reads incoming messages.","It decides which ones you are allowed to see.","You cannot change its choices or open the hidden ones."],moment:"Your lab partner's urgent message stays hidden because the app judged it a distraction."},
+  "B-12":{who:"Students who want only the notifications that matter.",steps:["Your phone reads your thoughts during a session.","It learns which notifications you would actually want.","It shows only those and holds the rest."],moment:"You are hoping to hear from your advisor, and only that email gets through."},
+  "B-21":{who:"Groups that struggle to split work fairly.",steps:["The app breaks the project into hundreds of tiny tasks.","Each member must claim twenty tasks every day.","Unclaimed tasks are assigned automatically at midnight."],moment:"By day three, everyone has sixty small tasks and no one knows what the whole report looks like."},
+  "B-22":{who:"Groups with an appointed leader.",steps:["The group picks a leader at the start.","The leader assigns every task in the app.","Other members cannot swap, decline or edit their tasks."],moment:"You are assigned the data analysis even though you asked to write the introduction."},
+  "B-23":{who:"Groups whose members don't know each other's skills.",steps:["An AI reads every message each member has ever sent.","It works out each person's exact skills.","It splits the work perfectly by skill on day one."],moment:"The app assigns you the slides because of a message you sent years ago."},
+  "B-24":{who:"Groups where members go quiet.",steps:["Each member has a progress card on a shared board.","Everyone must update their card every hour, day and night.","If someone misses an update, the whole group is alerted."],moment:"Your phone buzzes at 3 am because a teammate fell asleep before updating."},
+  "B-25":{who:"Groups worried about free riders.",steps:["The app watches what each member contributes.","An AI gives each person a contribution score.","Members cannot question the score, and it goes to the instructor."],moment:"You spent hours finding sources, but the AI ranks you last and you have no way to respond."},
+  "B-26":{who:"Groups that want a fair record of who did what.",steps:["Every member writes with a smart pen.","The pen measures how much each person actually writes.","The app turns pen data into a contribution chart."],moment:"At the end of the project, the chart shows who wrote the most by hand."},
+  "B-27":{who:"Groups that rarely meet.",steps:["The app books a group meeting for everyone.","Each meeting lasts two hours.","A meeting happens every single day until the project ends."],moment:"In week two, the group has met fourteen times and everyone is exhausted."},
+  "B-28":{who:"Groups with conflicting schedules.",steps:["The instructor sees every group's member list.","They set all group meeting times.","Students cannot reschedule or suggest other times."],moment:"Your group must meet Friday at 8 am, during your work shift."},
+  "B-29":{who:"Groups whose schedules never line up.",steps:["The app connects to the university's class system.","It moves members' classes so they share free time.","Everyone in the group is always free at the same time."],moment:"Your Tuesday chemistry lab moves to Thursday so your group can meet."},
+  "t1-b01-exaggerate":{"who":"Students who lose track of time during long study blocks.","steps":["You set your own study and break lengths.","When a break starts, the phone plays a siren at full volume.","The same siren sounds when the break ends, loud enough to reach the whole floor."],"moment":"At 11 pm in the dorm, your 10-minute break begins with a siren that wakes everyone down the hall."},
+  "t1-b01-control":{"who":"Students who lose track of time during long study sessions.","steps":["An AI coach watches how you study through the day.","It decides when each study block and each break begins.","Your own timer settings are ignored once the coach is on."],"moment":"At 3:40 pm in the library the coach ends your break early and starts a 70 minute block."},
+  "t1-b01-impractical":{"who":"Students who study in long blocks and forget to eat.","steps":["You set your own study and break lengths.","When a break starts, the phone chimes gently.","A fresh snack you like appears beside your phone out of thin air."],"moment":"At 3:50 pm in the library, your break starts and a warm pretzel appears next to your phone."},
+  "t1-b02-exaggerate":{"who":"Students who lose focus every time they pick up their phone.","steps":["Place your phone face down to start a study timer.","Every flip starts a fourteen-hour session, the shortest length offered.","Flipping the phone back ends the session, and the next flip starts another fourteen hours."],"moment":"At 9 am in Grainger Library, Leo flips his phone and the timer reads 14:00:00 until 11 pm."},
+  "t1-b02-control":{"who":"Students living in residence halls.","steps":["You place your phone face down to start a study timer.","Your RA sets the length of every timer for the floor.","The RA's time replaces the one you chose, and flipping the phone back does not end it early."],"moment":"On Wednesday at 8 pm you flip your phone for a quick 20 minutes, but your RA's 90-minute timer starts instead."},
+  "t1-b02-impractical":{"who":"Students who study in noisy dorms and busy buildings.","steps":["You place your phone face down on your desk.","Every noise in the whole building disappears at once.","The building stays silent until you flip your phone back."],"moment":"At 9 pm in Hall 4 you flip your phone and the hallway music, the dryer, and the elevator all go quiet."},
+  "t1-b03-control":{"who":"Students who study in campus libraries.","steps":["The campus library picks one sound for everyone each day.","It plays on your phone whenever you study.","You cannot change the sound or switch it off."],"moment":"Wednesday at 8 pm you open your notes and whale songs start playing because the library chose them."},
+  "t1-b03-impractical":{"who":"Students who study better with background music.","steps":["Tell the app what topic you are studying.","It composes music that plays directly inside your head, with no headphones.","The melody shifts to match each concept as you read it."],"moment":"At 8 pm in her dorm, Maya opens her BIO 150 notes and hears a soft cell-division theme in her head."},
+  "t1-b04-control":{"who":"Students who get pulled into colorful apps while studying.","steps":["Your screen switches to grayscale during study time.","Your academic advisor decides when the gray starts.","Colors come back only when your advisor says you have earned them."],"moment":"Thursday at 3 pm your screen goes gray in the library because your advisor scheduled it."},
+  "t1-b04-impractical":{"who":"Students who get pulled away by colorful apps and objects.","steps":["You switch your phone screen to grayscale.","The whole room around you turns gray too.","Posters, snacks, and your bed stop looking tempting until you switch back."],"moment":"At 8 pm in your dorm room you tap grayscale and the red snack bag and bright posters fade to gray."},
+  "t1-b05-exaggerate":{"who":"Students whose minds wander during reading.","steps":["When a thought distracts you, tap to park it.","Before it saves, you fill in a one-page form about the thought.","Once every field is done, you can return to studying."],"moment":"At 10:15 pm during PSYC 100 reading, you remember a text to Sam and spend six minutes on the form."},
+  "t1-b05-control":{"who":"Students whose minds wander during long study sessions.","steps":["Tap once to park a distracting thought in a list.","After studying, the AI reviews every parked thought.","It keeps the ones it judges worth keeping and deletes the rest without asking."],"moment":"At 10 pm Sam opens his parked thoughts and finds only two of his seven left."},
+  "t1-b05-impractical":{"who":"Students whose minds wander mid-study.","steps":["When a thought distracts you, tap once to park it.","A second copy of you appears beside your desk.","Your copy works through every parked thought while you keep studying."],"moment":"At 9 pm in Grainger Library, your twin sits next to you and books your dentist appointment."},
+  "t1-b06-control":{"who":"Students who struggle to pick a realistic daily study goal.","steps":["The dean's office sets your daily study goal.","It replaces the goal you chose for yourself.","Your streak only grows when you hit the dean's number."],"moment":"On Monday morning your 60 minute goal is changed to 180 minutes by the dean's office."},
+  "t1-b06-impractical":{"who":"Students with uneven weekly schedules.","steps":["You set a daily study goal in minutes.","Minutes you do not use are saved in your Time Bank.","Before a busy day, you spend them to add extra hours to that day."],"moment":"The night before your CS 225 exam, you spend 180 saved minutes and Thursday gets 27 hours."},
+  "t1-b07-control":{"who":"Students who study in many places around campus.","steps":["The university picks which places count as your study spots.","When you arrive at one, focus mode starts on its own.","You cannot add your own spots or remove the ones the university chose."],"moment":"At 1 pm Ana walks into the Union for lunch and her phone switches into focus mode."},
+  "t1-b08-exaggerate":{"who":"Students who like seeing their progress add up.","steps":["You take notes as usual during a session.","After every single line you write, the app asks for a photo.","Each photo is added to your weekly gallery."],"moment":"In your 10 am BIO 120 lecture, you stop to snap a photo after each line of notes."},
+  "t1-b08-control":{"who":"Students who like to see proof of their progress.","steps":["You snap a photo of your work at the end of each session.","Your TA reviews every snapshot.","Only the sessions your TA approves appear in your weekly gallery."],"moment":"On Thursday night your TA rejects your photo of math notes, so that session vanishes from your week."},
+  "t1-b08-impractical":{"who":"Students who study in messy dorm rooms.","steps":["At the end of a session, you snap a photo of your desk.","The photo instantly tidies your real desk and the whole room.","Each photo is added to a weekly gallery."],"moment":"At 11 pm after finishing your essay, you snap your desk and the room is clean before you put the phone down."},
+  "t1-b09-control":{"who":"Students who open distracting apps out of habit.","steps":["You flag the apps that pull you away from studying.","Opening one sends a request to your younger sibling.","The app stays locked until your sibling taps approve."],"moment":"At 9 pm Leo tries to open Instagram and waits while his 12-year-old sister finishes her game."},
+  "t1-b09-impractical":{"who":"Students who open social apps without thinking.","steps":["You flag the apps that tempt you most.","When you open one, a pause begins for the seconds you chose.","During the pause your phone turns into a solid brick, then changes back."],"moment":"At 4 pm in the study lounge, you tap Instagram and hold a brick for 10 seconds."},
+  "t1-b10-exaggerate":{"who":"Students who want a fully planned day.","steps":["Each evening you plan tomorrow in one minute blocks.","All 1,440 minutes must be filled, including sleep and meals.","The phone reminds you at the start of every single block."],"moment":"At 11 pm you are still filling in minute 612 while your reminders for tomorrow keep piling up."},
+  "t1-b10-control":{"who":"Students juggling several courses at once.","steps":["Every night the app writes your study plan for tomorrow.","It moves your blocks during the day whenever it thinks best.","You get a notice after each block has been moved."],"moment":"At 2 pm Tuesday the app moves your MATH 241 block to 9 pm while you are walking to the gym."},
+  "t1-b10-impractical":{"who":"Students who struggle to plan a realistic study day.","steps":["Each evening the app plays a video of how tomorrow will actually go.","You watch where your time really ends up, hour by hour.","Then you plan study blocks around what the video showed."],"moment":"At 10 pm Maya watches tomorrow's video and sees her 2 pm lab running late."},
+  "t2-b01-exaggerate":{"who":"Groups that want everyone to try different jobs.","steps":["Members vote each week on the order of roles.","Roles like note-taker and editor rotate every hour.","Each member switches jobs about ten times a day."],"moment":"At 2 pm Ana stops editing mid-paragraph because the clock just made her note-taker."},
+  "t2-b01-control":{"who":"Project groups that argue over who does which job.","steps":["The app checks each member's GPA.","The member with the highest GPA becomes the role picker.","Each week they assign roles for everyone else."],"moment":"On Monday Ana, who has the top GPA, makes Leo the note-taker for the third week in a row."},
+  "t2-b01-impractical":{"who":"Groups where members have uneven skills.","steps":["Members vote each week on how to rotate roles.","When you take a new role, its skills download straight into your brain.","You can do the job well from the first minute."],"moment":"On Monday at 4 pm Leo becomes editor and instantly knows APA style by heart."},
+  "t2-b02-exaggerate":{"who":"Groups that lose track of who changed what.","steps":["All group files live in one shared folder.","Every single keystroke saves a new file version.","The folder keeps every copy so nothing is ever lost."],"moment":"By Thursday the INFO 490 folder holds 2.3 million copies of the final report."},
+  "t2-b02-control":{"who":"Groups sharing many files across a semester project.","steps":["All group files go into one shared folder.","Campus IT reviews each upload before anyone can see it.","IT decides which files the group is allowed to keep."],"moment":"Monday at 10 pm Sam uploads the survey draft, and IT removes it the next morning."},
+  "t2-b03-control":{"who":"Groups where members hesitate to raise problems.","steps":["Any member posts a concern about the project.","The concern goes straight to the professor.","The professor decides what the group must change."],"moment":"On Friday Maya posts that Sam misses meetings, and by Monday the professor has changed Sam's role."},
+  "t2-b03-impractical":{"who":"Groups where quiet members hold back worries.","steps":["Any member can post an anonymous concern.","The concern instantly appears painted on the wall of every member's room.","The group then decides together how to respond."],"moment":"At 1 am Maya wakes up to \"We are behind on the survey\" painted above her bed."},
+  "t2-b04-exaggerate":{"who":"Groups where help often goes unnoticed.","steps":["Members send quick thank-you notes on a shared wall.","Each member must send fifty notes to teammates every day.","The wall shows who is behind on today's quota."],"moment":"At 11 pm Sam is still writing thank-you notes to Ana for small things like replying."},
+  "t2-b04-control":{"who":"Groups that want to recognize each other's help.","steps":["The group shares one Kudos Wall.","Only the group leader can write thank-you notes.","The leader decides who deserves them."],"moment":"After Friday's meeting, Maya posts kudos for Leo and leaves Ana's late-night edits off the wall."},
+  "t2-b05-exaggerate":{"who":"Groups who want every voice heard in the final report.","steps":["Each member writes sentences for the report.","Every sentence gets its own group poll.","A sentence is added only after everyone votes yes."],"moment":"On Wednesday night the group has 47 open polls, and the report still has two sentences."},
+  "t2-b05-control":{"who":"Groups that need to make fast decisions.","steps":["Any member can start a quick poll.","Everyone votes on the options.","The app picks the winner by itself, no matter how members voted."],"moment":"Thursday at 6 pm the group votes 3 to 1 for Zoom, and the app picks Grainger Library."},
+  "t2-b06-control":{"who":"New groups that have never worked together before.","steps":["Each member's parents get a link to the team agreement.","The parents write the rules on deadlines, chat, and disagreements.","Students must follow the agreement exactly as written."],"moment":"On Monday the group opens its charter and finds a 9 pm curfew on group chat set by Leo's dad."},
+  "t2-b06-impractical":{"who":"Groups worried about conflict before a big project.","steps":["Members write a team charter together on deadlines and communication.","Everyone signs it in the app.","From then on, members can never disagree with each other."],"moment":"In week two, Leo and Ana both want different topics, and the charter makes them agree instantly."},
+  "t2-b07-exaggerate":{"who":"Groups that cannot meet in person often.","steps":["Members record voice updates on their progress.","Each update must be at least two hours long.","Others listen to every update before the next meeting."],"moment":"On Sunday Leo has six hours of updates to hear before Monday's meeting."},
+  "t2-b07-control":{"who":"Groups with members on different schedules.","steps":["Members record short voice memos about their progress.","An AI rewrites each memo in its own words.","It decides which parts the group gets to hear."],"moment":"At 9 pm Sam records two minutes on survey problems, and the group hears ten seconds saying it is going well."},
+  "t2-b07-impractical":{"who":"Groups whose members keep different schedules.","steps":["Record a short voice memo about your progress.","The memo travels as a real echo across campus.","It follows each teammate around until they have heard it."],"moment":"At 3 pm Ana hears Leo's update echoing behind her on the Quad."},
+  "t2-b08-exaggerate":{"who":"Groups that want polished drafts before sharing.","steps":["Members pair up to swap drafts and comment.","Every draft must be reviewed by every member twelve times.","Only after all reviews can the draft be shared."],"moment":"By Thursday, Sam's two-page intro is on its 31st review and still cannot be shared."},
+  "t2-b08-control":{"who":"Groups that swap drafts before a big deadline.","steps":["The app chooses each member's review partner.","It also sets the due date for each review.","Members cannot switch partners or decline."],"moment":"On Tuesday Sam is paired with Ana again and must return comments by 8 am Wednesday."},
+  "t2-b09-exaggerate":{"who":"Groups that tend to leave work until the last week.","steps":["The group votes on milestones before the deadline.","A countdown appears on every member's lock screen.","It flashes and beeps every second until the deadline."],"moment":"At 3 am, eight days before the deadline, Ana's phone is still beeping on her nightstand."},
+  "t2-b09-impractical":{"who":"Groups that always run short on time before milestones.","steps":["The group votes on milestones before the deadline.","Before each one, members drag a slider to slow down time itself.","Everyone gets extra hours while the rest of the world moves slower."],"moment":"At 10 pm Friday, Maya drags the slider so the draft deadline stays an hour away all night."},
+  "t2-b10-control":{"who":"Groups where workload often ends up uneven.","steps":["Members log their own hours each day.","A meter shows how balanced the workload is.","When it looks uneven, the app moves tasks between members on its own."],"moment":"On Sunday night Ana opens the app and finds Leo's slides moved to her list."},
+  "t2-b10-impractical":{"who":"Groups that worry the work is not split evenly.","steps":["A sensor reads how hard each member's brain worked.","It measures exact effort on the project, not just hours.","The meter shows everyone's true share of the work."],"moment":"After Thursday's meeting the meter shows that Leo's brain did 41 percent of the thinking."}
+};
+/* what each plan claims, and what its main screen looks like */
+var SCREENS = {
+  "B-01":{pitch:"Removes every temptation, so focus is the only option left.",s:{t:"big",app:"Total Lockdown",sub:"Session running",icon:"lock",big:"5:59:12",cap:"Phone locked. Calls and texts are blocked.",btn:"Unlock not available",off:1}},
+  "B-02":{pitch:"Takes planning off your plate and keeps you on a steady routine.",s:{t:"list",app:"Focus schedule",sub:"Set by your professor",rows:[["Tue 7:00 pm","Reading · 90 min"],["Wed 8:00 pm","Problem set · 60 min"],["Thu 7:00 pm","Review · 120 min"],["Sat 10:00 am","Reading · 90 min"]],cap:"Sessions start automatically. You can't move or skip them.",btn:"Next session in 2 h",off:1}},
+  "B-03":{pitch:"Catches drifting attention before you even notice it.",s:{t:"big",app:"Focus Band",sub:"Connected to wristband",icon:"wave",big:"Drifting",meter:28,cap:"Attention below threshold. All apps paused.",btn:"Waiting for focus to return",off:1}},
+  "B-04":{pitch:"Constant feedback keeps you aware of how you are doing.",s:{t:"pop",app:"Focus session",sub:"Reading · Chapter 4",big:"24:10",pop:["Recap #12","Focus so far: high. Tap to dismiss and continue."],cap:"Next recap in 2:00"}},
+  "B-05":{pitch:"Someone who cares about you helps keep you on track.",s:{t:"list",app:"Weekly report",sub:"Sent to: your parents",rows:[["Study time","9 h 20 min"],["Sessions","6"],["Parents' decision","Not enough"],["Added by parents","+2 sessions"]],cap:"Your parents can add required sessions.",btn:"View added sessions"}},
+  "B-06":{pitch:"Turns focus into a score you can track over time.",s:{t:"big",app:"Stillness score",sub:"Main Library · Chair 214",icon:"chair",big:"Session done",meter:62,cap:"Score based on how still you sat.",btn:"See chair data"}},
+  "B-07":{pitch:"Feeling watched makes it harder to slack off.",s:{t:"live",app:"Buddy Livestream",sub:"Streaming to Alex",cap:"Live for 2:41:05. Alex can see your camera.",btn:"End stream (Alex must agree)",off:1}},
+  "B-08":{pitch:"You can't give up halfway through a session.",s:{t:"big",app:"Buddy Lock",sub:"Locked by Sam",icon:"lock",big:"Locked",cap:"Only Sam can end this session.",btn:"Ask Sam to unlock"}},
+  "B-09":{pitch:"You always have a study partner nearby.",s:{t:"big",app:"Campus Match",sub:"Main Library",icon:"pin",big:"Matched",cap:"Jordan is studying two floors up. Matched in under a second.",btn:"Start session together"}},
+  "B-10":{pitch:"A truly quiet phone every time you study.",s:{t:"list",app:"Notifications",sub:"Study mode on",rows:[["Group chat","Deleted"],["Email","Deleted"],["Calendar","Deleted"],["Family","Deleted"]],cap:"Notifications are deleted until the semester ends.",btn:"Restore not available",off:1}},
+  "B-11":{pitch:"You never have to decide what is worth reading.",s:{t:"list",app:"Messages",sub:"Filtered by the app",rows:[["Mom","Shown"],["Lab partner","Hidden"],["Club chat","Hidden"],["Professor","Hidden"]],cap:"You can't open hidden messages.",btn:"Hidden: 3",off:1}},
+  "B-12":{pitch:"Only the messages you truly want get through.",s:{t:"list",app:"Mind Filter",sub:"Reading your thoughts",rows:[["Advisor email","Let through"],["Group chat","Held"],["News alert","Held"],["Game invite","Held"]],cap:"Filter based on what you are thinking right now.",btn:"Recalibrate thoughts"}},
+  "B-21":{pitch:"Small tasks are easy to start and easy to track.",s:{t:"list",app:"My tasks today",sub:"7 of 20 claimed",rows:[["#214","Fix comma, para 3"],["#215","Rename figure 2"],["#216","Check one citation"],["#217","Bold one heading"]],cap:"Unclaimed tasks auto-assign at midnight.",btn:"Claim 13 more"}},
+  "B-22":{pitch:"One clear decision-maker means no arguments about roles.",s:{t:"list",app:"Task assignments",sub:"Assigned by leader: Maya",rows:[["You","Data analysis"],["Leo","Slides"],["Ana","Introduction"],["Maya","Final review"]],cap:"Members can't swap or decline tasks.",btn:"Request change not available",off:1}},
+  "B-23":{pitch:"Everyone gets the work they are best at.",s:{t:"list",app:"Auto-split",sub:"Based on every message you've sent",rows:[["You","Slides"],["Leo","Statistics"],["Ana","Writing"],["Maya","Editing"]],cap:"Skills detected from all past chats.",btn:"Accept split"}},
+  "B-24":{pitch:"Nobody can disappear for days.",s:{t:"pop",app:"Progress board",sub:"Next update due in 12 min",big:"3:00 am",pop:["Group alert","Leo missed the 3:00 am update."],cap:"Updates are required every hour, day and night."}},
+  "B-25":{pitch:"A neutral judge makes credit fair.",s:{t:"bars",app:"Contribution scores",sub:"Final · sent to instructor",bars:[["Maya",86],["Ana",71],["Leo",54],["You",22]],cap:"Scores can't be questioned.",btn:"Appeal not available",off:1}},
+  "B-26":{pitch:"Hard data on who really did the work.",s:{t:"bars",app:"Pen data",sub:"Words written by hand",bars:[["Ana",80],["Leo",55],["Maya",48],["You",30]],cap:"Measured by each member's smart pen.",btn:"Sync pens"}},
+  "B-27":{pitch:"Regular meetings keep everyone in sync.",s:{t:"list",app:"Group meetings",sub:"Booked automatically",rows:[["Mon","6:00–8:00 pm"],["Tue","6:00–8:00 pm"],["Wed","6:00–8:00 pm"],["Thu","6:00–8:00 pm"]],cap:"A two-hour meeting every day until the deadline.",btn:"Skip not available",off:1}},
+  "B-28":{pitch:"No more endless scheduling polls.",s:{t:"list",app:"Meeting time",sub:"Set by instructor",rows:[["Day","Friday"],["Time","8:00 am"],["Room","Library 204"],["Changes","Turned off"]],cap:"Students can't reschedule or suggest times.",btn:"Add to calendar"}},
+  "B-29":{pitch:"Scheduling conflicts disappear.",s:{t:"list",app:"New timetable",sub:"Classes moved for your group",rows:[["Chem lab","Tue → Thu"],["Statistics","Mon → Wed"],["History","9 am → 1 pm"],["Group free","Every afternoon"]],cap:"Classes rearranged so all members share free time.",btn:"Confirm new timetable"}},
+  "t1-b01-exaggerate":{"pitch":"You will never miss the start or end of a break again.","s":{"t":"big","app":"Break Siren","sub":"Break ends in","icon":"wave","big":"0:42","meter":100,"cap":"Siren volume is locked at maximum.","btn":"Lower volume","off":1}},
+  "t1-b01-control":{"pitch":"No more guessing when to rest, because the coach knows best.","s":{"t":"big","app":"Break Coach","sub":"Chosen by your AI coach","icon":"wave","big":"Study 70 min","meter":20,"cap":"Your 25 minute timer was replaced by the coach.","btn":"Change timer","off":1}},
+  "t1-b01-impractical":{"pitch":"Breaks feel like a reward, so you keep coming back to study.","s":{"t":"pop","app":"Break Coach","sub":"Break 2 of 4 · 10 min","big":"3:50 pm","pop":["Snack delivered","Warm pretzel, next to your phone."],"cap":"Your snack appears the moment the break starts.","btn":"Start break"}},
+  "t1-b02-exaggerate":{"pitch":"One flip covers your whole day, so you never have to plan sessions again.","s":{"t":"big","app":"Flip to Focus","sub":"Session running","icon":"lock","big":"13:58:12","meter":1,"cap":"Ends at 11:00 pm. Shortest length is 14 hours.","btn":"Flip back to end"}},
+  "t1-b02-control":{"pitch":"Your RA knows the floor's rhythm and keeps everyone studying together.","s":{"t":"big","app":"Flip to Focus","sub":"Timer set by RA Jordan","icon":"lock","big":"90 min","meter":15,"cap":"Your chosen time of 20 min was replaced.","btn":"End session","off":1}},
+  "t1-b02-impractical":{"pitch":"Perfect silence, anywhere, with one flip.","s":{"t":"big","app":"Silent Building","sub":"Lincoln Hall, all 6 floors","icon":"wave","big":"0 dB","meter":0,"cap":"Every noise in the building is gone.","btn":"Flip to end"}},
+  "t1-b03-control":{"pitch":"No time wasted picking sounds, just a calm shared mood.","s":{"t":"big","app":"Soundscape","sub":"Chosen by Main Library","icon":"wave","big":"Whale songs","meter":70,"cap":"Today's sound plays until your session ends.","btn":"Turn off not available","off":1}},
+  "t1-b03-impractical":{"pitch":"Music made for your exact topic, heard only by you.","s":{"t":"big","app":"Dream Soundtrack","sub":"Playing inside your head","icon":"wave","big":"Mitosis Suite","meter":64,"cap":"Composed live for BIO 150, Chapter 12.","btn":"Pause in my head"}},
+  "t1-b04-control":{"pitch":"An expert on your degree helps you build better study habits.","s":{"t":"list","app":"Grayscale Study","sub":"Managed by your advisor","rows":[["Gray since","3:00 pm"],["Colors back","Advisor decides"],["Earned so far","0 of 3 hours"],["Your switch","Disabled"]],"cap":"Only your advisor can bring colors back.","btn":"Request colors","off":1}},
+  "t1-b04-impractical":{"pitch":"When nothing has color, nothing can distract you.","s":{"t":"big","app":"Gray Room","sub":"Applied to phone and room","icon":"chair","big":"Room: Gray","meter":100,"cap":"Your walls, desk, and snacks are now gray.","btn":"Restore color"}},
+  "t1-b05-exaggerate":{"pitch":"Every thought gets fully captured, so nothing slips away.","s":{"t":"list","app":"Park a thought","sub":"Form 1 of 1 · 4 of 12 fields","rows":[["Thought","Text Sam back"],["Category","Required"],["Urgency 1 to 10","Required"],["Why it came up","Required"]],"cap":"Finish all 12 fields to return to studying.","btn":"Save thought","off":1}},
+  "t1-b05-control":{"pitch":"Your list stays clean because the AI handles the sorting for you.","s":{"t":"list","app":"Parked thoughts","sub":"Sorted by AI","rows":[["Email TA about quiz","Kept"],["Call Grandma","Deleted"],["Gym at 6","Deleted"],["Buy printer ink","Kept"]],"cap":"Deleted thoughts can't be recovered.","btn":"Undo not available","off":1}},
+  "t1-b05-impractical":{"pitch":"Your distractions get handled without costing you a minute.","s":{"t":"list","app":"Thought Twin","sub":"Your twin is working","rows":[["Email Prof. Kim","Done"],["Buy groceries","In progress"],["Text Sam back","Queued"],["Dentist call","Done"]],"cap":"Your copy handles parked thoughts while you study.","btn":"Park a thought"}},
+  "t1-b06-control":{"pitch":"Expert guidance takes the guesswork out of goal setting.","s":{"t":"big","app":"Goal Streaks","sub":"Set by the Dean's Office","icon":"pin","big":"180 min","meter":15,"cap":"Your own goal of 60 min was replaced.","btn":"Edit goal","off":1}},
+  "t1-b06-impractical":{"pitch":"Your free time is never wasted, it is waiting for when you need it.","s":{"t":"big","app":"Time Bank","sub":"Saved study minutes","big":"180 min","meter":60,"cap":"Spend minutes to make Thursday longer.","btn":"Add 3 h to Thursday"}},
+  "t1-b07-control":{"pitch":"Campus knows the best places to study, so you don't have to decide.","s":{"t":"list","app":"My study spots","sub":"Chosen by the university","rows":[["Grainger Library","Auto focus"],["Illini Union","Auto focus"],["Siebel Center","Auto focus"],["Add a spot","Not allowed"]],"cap":"Focus mode starts when you arrive at any spot.","btn":"Edit spots","off":1}},
+  "t1-b08-exaggerate":{"pitch":"Every bit of effort gets captured, so nothing goes unnoticed.","s":{"t":"pop","app":"Study Snapshot","sub":"BIO 120 notes","big":"Line 38","pop":["Photo needed","Snap line 38 before you continue."],"cap":"A photo is required after every line you write."}},
+  "t1-b08-control":{"pitch":"A trained eye makes sure your gallery shows real progress.","s":{"t":"list","app":"Weekly gallery","sub":"Reviewed by TA Sam","rows":[["Mon, notes","Counted"],["Tue, essay draft","Counted"],["Wed, flashcards","Not counted"],["Thu, MATH 241","Not counted"]],"cap":"Your TA decides which sessions count.","btn":"Appeal","off":1}},
+  "t1-b08-impractical":{"pitch":"A clean space every night means a fresh start every morning.","s":{"t":"pop","app":"Study Snapshot","sub":"Session done · 2 h 10 min","big":"11:02 pm","pop":["Room tidied","Desk and room are clean."],"cap":"One snap tidies the real desk and room.","btn":"Add to gallery"}},
+  "t1-b09-control":{"pitch":"A family member gives you a moment to rethink before you scroll.","s":{"t":"big","app":"Mindful Pause","sub":"Waiting for approval","icon":"lock","big":"Instagram","cap":"Request sent to Mia, your younger sister.","btn":"Waiting for Mia","off":1}},
+  "t1-b09-impractical":{"pitch":"A real physical pause gives you time to rethink.","s":{"t":"big","app":"Brick Pause","sub":"Instagram flagged","big":"10 sec","meter":60,"cap":"Your phone is a brick until the pause ends.","btn":"Skip","off":1}},
+  "t1-b10-exaggerate":{"pitch":"Every minute has a purpose, so nothing gets wasted.","s":{"t":"list","app":"Minute Planner","sub":"Tomorrow, 612 of 1,440 filled","rows":[["7:01 am","Open eyes"],["7:02 am","Sit up"],["7:03 am","Walk to sink"],["7:04 am","Brush teeth"]],"cap":"Every minute of the day must be planned.","btn":"Fill 828 more"}},
+  "t1-b10-control":{"pitch":"Your plan keeps adjusting so you never have to replan.","s":{"t":"list","app":"Tomorrow","sub":"Written by the app","rows":[["9:00 am","STAT 200 · 60 min"],["1:00 pm","Reading · 45 min"],["9:00 pm","MATH 241 · 90 min"],["Edits by you","Off"]],"cap":"Blocks may move at any time.","btn":"Edit plan","off":1}},
+  "t1-b10-impractical":{"pitch":"Plan with real knowledge of tomorrow, not guesses.","s":{"t":"live","app":"Future Preview","sub":"Tomorrow, Wed Oct 22","cap":"Recorded footage of how tomorrow will go.","btn":"Plan around this"}},
+  "t2-b01-exaggerate":{"pitch":"Everyone gets to try every job, many times a day.","s":{"t":"list","app":"Role Rotation","sub":"Next switch in 12 min","rows":[["Maya","Editor"],["Leo","Note-taker"],["Ana","Researcher"],["Sam","Designer"]],"cap":"Roles rotate every hour, all day.","btn":"See next hour"}},
+  "t2-b01-control":{"pitch":"Your strongest student keeps the group organized.","s":{"t":"list","app":"This week's roles","sub":"Chosen by Ana, top GPA","rows":[["Ana","Editor"],["Leo","Note-taker"],["Maya","Formatting"],["Sam","Note-taker backup"]],"cap":"Roles are set by the highest GPA member.","btn":"Vote on roles","off":1}},
+  "t2-b01-impractical":{"pitch":"Everyone can do every job, so rotation is always fair.","s":{"t":"big","app":"Skill Download","sub":"Leo · new role: Editor","big":"Editor","meter":85,"cap":"Editing skills are loading into Leo's brain.","btn":"Downloading","off":1}},
+  "t2-b02-exaggerate":{"pitch":"Every change is saved, so no one's work ever disappears.","s":{"t":"list","app":"File Hub","sub":"INFO 490 group","rows":[["report_v2318441","Maya, 1 sec ago"],["report_v2318440","Maya, 1 sec ago"],["report_v2318439","Maya, 2 sec ago"],["report_v2318438","Maya, 2 sec ago"]],"cap":"A new version saves on every keystroke.","btn":"Load more versions"}},
+  "t2-b02-control":{"pitch":"Experts keep your folder clean, safe, and organized.","s":{"t":"list","app":"File Hub","sub":"IS 340 group folder","rows":[["Survey_v2.docx","Removed by IT"],["Slides.pptx","Pending review"],["Notes.pdf","Approved"],["Data.xlsx","Pending review"]],"cap":"Campus IT decides which files stay.","btn":"Upload file"}},
+  "t2-b03-control":{"pitch":"A neutral expert settles every concern fairly.","s":{"t":"list","app":"Concern Box","sub":"Sent to Prof. Lee","rows":[["Sam misses meetings","Decided"],["Slides are late","Under review"],["Topic too broad","Decided"]],"cap":"The professor decides what the group must change.","btn":"Discuss as group","off":1}},
+  "t2-b03-impractical":{"pitch":"No one can miss a concern, so every voice gets heard.","s":{"t":"pop","app":"Concern Box","sub":"Group 4 · INFO 303","big":"Posted","pop":["Painted in 4 rooms","\"We are behind on the survey.\""],"cap":"The concern is now on every member's wall.","btn":"Discuss response"}},
+  "t2-b04-exaggerate":{"pitch":"Constant thanks keeps the whole team feeling valued.","s":{"t":"bars","app":"Kudos Wall","sub":"Today's quota: 50 each","bars":[["Maya",100],["Leo",72],["Ana",48],["Sam",30]],"cap":"Sam still needs 35 notes before midnight.","btn":"Send a thank-you"}},
+  "t2-b04-control":{"pitch":"Recognition means more when it comes from the leader.","s":{"t":"list","app":"Kudos Wall","sub":"Posted by leader Maya","rows":[["Leo","Great slides"],["Sam","Fast research"],["Ana","None yet"]],"cap":"Only the leader can give kudos.","btn":"Send kudos","off":1}},
+  "t2-b05-exaggerate":{"pitch":"Nothing goes in unless the whole group agrees.","s":{"t":"list","app":"Sentence polls","sub":"47 open, 2 approved","rows":[["Para 1, sent. 3","Waiting on Leo"],["Para 1, sent. 4","Waiting on 3"],["Para 2, sent. 1","Waiting on 4"],["Para 2, sent. 2","Waiting on Ana"]],"cap":"Each sentence needs a yes from everyone.","btn":"Vote on 47"}},
+  "t2-b05-control":{"pitch":"Decisions get made right away, with no debate.","s":{"t":"bars","app":"Quick Poll","sub":"Where do we meet?","bars":[["Zoom",75],["Grainger Library",25],["Union cafe",0]],"cap":"Winner chosen by the app: Grainger Library.","btn":"Change result","off":1}},
+  "t2-b06-control":{"pitch":"Experienced adults set clear rules, so the group starts strong.","s":{"t":"list","app":"Team Charter","sub":"Written by parents","rows":[["Deadlines","3 days early"],["Group chat","Off after 9 pm"],["Disagreements","Call parents"],["Student edits","Not allowed"]],"cap":"Follow the charter as written.","btn":"Edit charter","off":1}},
+  "t2-b06-impractical":{"pitch":"Sign once and your group never argues again.","s":{"t":"big","app":"Team Charter","sub":"Signed by 4 of 4","icon":"pin","big":"0 conflicts","cap":"Disagreement is now impossible for this group.","btn":"View charter"}},
+  "t2-b07-exaggerate":{"pitch":"Long updates mean nothing gets left out.","s":{"t":"big","app":"Voice Updates","sub":"Recording, Maya","icon":"wave","big":"0:14:32","meter":12,"cap":"Updates must be at least 2 hours long.","btn":"Post update","off":1}},
+  "t2-b07-control":{"pitch":"Everyone gets short, clear updates without long rambles.","s":{"t":"list","app":"Voice Updates","sub":"Rewritten by AI","rows":[["Sam · 2 min","Shared: 10 sec"],["Maya · 1 min","Shared: 8 sec"],["Leo · 3 min","Not shared"],["Originals","Hidden"]],"cap":"The AI decides what the group hears.","btn":"Play summaries"}},
+  "t2-b07-impractical":{"pitch":"No update gets missed when it finds each teammate in person.","s":{"t":"list","app":"Echo Updates","sub":"Leo's memo, 0:42","rows":[["Maya","Heard"],["Ana","Echo near Quad"],["Sam","Echo near Grainger"]],"cap":"Echoes follow teammates until heard.","btn":"Send another echo"}},
+  "t2-b08-exaggerate":{"pitch":"Your drafts get more feedback than ever before.","s":{"t":"bars","app":"Swap Marathon","sub":"Intro draft · 48 reviews needed","bars":[["Maya",75],["Leo",58],["Ana",92],["Sam",33]],"cap":"Each member must review this draft 12 times.","btn":"Share draft","off":1}},
+  "t2-b08-control":{"pitch":"No awkward asking, the app pairs everyone for you.","s":{"t":"list","app":"Draft Swap","sub":"Assigned by the app","rows":[["Your partner","Ana"],["Due","Wed 8:00 am"],["Switch","Not allowed"],["Decline","Not allowed"]],"cap":"Partners and deadlines are set by the app.","btn":"Request change","off":1}},
+  "t2-b09-exaggerate":{"pitch":"No one can forget the deadline, not even for a second.","s":{"t":"big","app":"Lock screen","sub":"Draft due · beeping every sec","big":"7d 21:14:09","meter":40,"cap":"Flashes and beeps every second until Nov 2.","btn":"Mute not available","off":1}},
+  "t2-b09-impractical":{"pitch":"Never miss a milestone when you control how fast time passes.","s":{"t":"big","app":"Milestone Countdown","sub":"Draft due Fri 11:59 pm","big":"0.25x time","meter":25,"cap":"Time now moves at a quarter speed.","btn":"Slow time more"}},
+  "t2-b10-control":{"pitch":"The app keeps work fair so nobody has to ask.","s":{"t":"bars","app":"Workload Meter","sub":"This week's hours","bars":[["Maya",40],["Leo",90],["Ana",25],["Sam",55]],"cap":"Uneven. The app will move tasks automatically.","btn":"Rebalance now"}},
+  "t2-b10-impractical":{"pitch":"Finally, a fair count of who really did the work.","s":{"t":"bars","app":"Effort Sensor","sub":"Brain effort, this week","bars":[["Leo",41],["Maya",27],["Ana",20],["Sam",12]],"cap":"Measured straight from each brain.","btn":"Rebalance"}}
+};
+var ICONS={
+  lock:'<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><rect x="9" y="18" width="22" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"></rect><path d="M14 18v-5a6 6 0 0 1 12 0v5" fill="none" stroke="currentColor" stroke-width="2.4"></path></svg>',
+  wave:'<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><path d="M4 22h6l3-8 5 16 4-12 3 6h11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path></svg>',
+  chair:'<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><path d="M13 6v16h16M13 22l-2 12M29 22l2 12M13 6h12v16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path></svg>',
+  pin:'<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 35s11-10 11-19a11 11 0 0 0-22 0c0 9 11 19 11 19z" fill="none" stroke="currentColor" stroke-width="2.4"></path><circle cx="20" cy="16" r="4" fill="none" stroke="currentColor" stroke-width="2.4"></circle></svg>'
+};
+function phone(s){
+  var h='<div class="phone"><div class="ph-head"><span class="ph-app">'+esc(s.app)+'</span><span class="ph-sub">'+esc(s.sub||'')+'</span></div>';
+  if(s.t==="big"||s.t==="pop"){
+    if(s.icon)h+='<div class="ph-icon">'+ICONS[s.icon]+'</div>';
+    h+='<p class="ph-big">'+esc(s.big)+'</p>';
+    if(s.meter!=null)h+='<div class="ph-meter" aria-hidden="true"><i style="width:'+s.meter+'%"></i></div>';
+  } else if(s.t==="list"){
+    h+='<div class="ph-rows">'+s.rows.map(function(r){return '<div class="ph-row"><b>'+esc(r[0])+'</b><span>'+esc(r[1])+'</span></div>';}).join('')+'</div>';
+  } else if(s.t==="live"){
+    h+='<div class="ph-live"><span class="ph-livepill">LIVE</span><svg width="70" height="70" viewBox="0 0 70 70" aria-hidden="true"><circle cx="35" cy="26" r="12" fill="currentColor"></circle><path d="M12 64c2-14 12-21 23-21s21 7 23 21z" fill="currentColor"></path></svg></div>';
+  } else if(s.t==="bars"){
+    h+='<div class="ph-rows">'+s.bars.map(function(b){return '<div class="ph-bar"><span>'+esc(b[0])+'</span><div class="ph-meter"><i style="width:'+b[1]+'%"></i></div><span class="tnum">'+b[1]+'</span></div>';}).join('')+'</div>';
+  }
+  if(s.pop)h+='<div class="ph-pop"><b>'+esc(s.pop[0])+'</b><span>'+esc(s.pop[1])+'</span></div>';
+  h+='<p class="ph-cap">'+esc(s.cap||'')+'</p>';
+  if(s.btn)h+='<span class="ph-btn'+(s.off?' off':'')+'">'+esc(s.btn)+'</span>';
+  return h+'</div>';
+}
+/* extra screens: shown before and after the main screen, so each plan walks through its flow */
+var FLOW = {
+  "B-01":{main:"During the session",before:[{t:"big",app:"Total Lockdown",sub:"Ready to focus",icon:"lock",big:"6:00:00",cap:"Starting locks every function, including calls, for six hours.",btn:"Start Focus",label:"Start a session"}],after:[{t:"list",app:"Incoming call",sub:"Blocked by Total Lockdown",rows:[["Mom","Call blocked"],["Roommate","Text held"],["Campus alert","Held"]],cap:"Nothing gets through until the timer ends, even in an emergency.",btn:"Emergency override not available",off:1,label:"Someone calls"}]},
+  "B-02":{main:"Your schedule",before:[{t:"list",app:"Class focus planner",sub:"Professor view · CHEM 202",rows:[["Section A","Tue, Thu 7 pm"],["Section B","Wed 8 pm"],["You","Tue 7 pm"],["Student changes","Off"]],cap:"Your professor sets sessions for the whole class.",btn:"Publish schedule",label:"Professor sets it"}],after:[{t:"big",app:"Focus starting",sub:"Started remotely by your professor",icon:"lock",big:"7:00 pm",cap:"Focus mode is on. You can't move or skip this session.",btn:"Skip not available",off:1,label:"Session starts"}]},
+  "B-03":{main:"Attention drifts",before:[{t:"big",app:"Focus Band",sub:"Pair your wristband",icon:"wave",big:"Pairing",meter:60,cap:"Wear the band while you study. It reads your brain waves.",btn:"Pair band",label:"Pair the band"}],after:[]},
+  "B-04":{main:"Every two minutes",before:[{t:"big",app:"Focus session",sub:"Reading · Chapter 4",big:"00:00",cap:"A recap will appear every two minutes.",btn:"Start session",label:"Start"}],after:[{t:"list",app:"Session summary",sub:"60 minutes",rows:[["Recaps shown","30"],["Recaps dismissed","30"],["Longest stretch","2 min"]],cap:"Each recap interrupted your reading.",btn:"Start another session",label:"After the session"}]},
+  "B-05":{main:"Weekly report",before:[{t:"list",app:"Set up reporting",sub:"Required for first-years",rows:[["Report to","Mom, Dad"],["How often","Weekly"],["Parents can add","Sessions"],["Opt out","Not allowed"]],cap:"Your parents will receive your study data.",btn:"Continue",label:"Setup"}],after:[{t:"list",app:"Parent dashboard",sub:"Your child's week",rows:[["Study time","9 h 20 min"],["Enough?","No"],["Add sessions","+2"]],cap:"Parents decide whether the week was enough.",btn:"Send to student",label:"Parent's view"}]},
+  "B-06":{main:"Your score",before:[{t:"big",app:"Stillness score",sub:"Sit in a sensor chair",icon:"chair",big:"Chair 214",cap:"Connect to the chair before you study.",btn:"Connect to chair",label:"Connect"}],after:[{t:"bars",app:"Chair data",sub:"Stillness per 10 min",bars:[["0:10",90],["0:20",70],["0:30",40],["0:40",65]],cap:"Less movement means a higher focus score.",btn:"Share score",label:"Chair data"}]},
+  "B-07":{main:"Live session",before:[{t:"list",app:"Buddy Livestream",sub:"Choose a buddy",rows:[["Alex","Roommate"],["Priya","Classmate"],["Sam","Friend"]],cap:"Your buddy watches your camera for the whole session.",btn:"Stream to Alex",label:"Pick a buddy"}],after:[{t:"live",app:"Watching your friend",sub:"On Alex's phone",cap:"Alex can send a nudge if you look away.",btn:"Send nudge",label:"Buddy's view"}]},
+  "B-08":{main:"Locked",before:[{t:"list",app:"Buddy Lock",sub:"Who can end your session?",rows:[["Sam","Can unlock"],["You","Cannot unlock"]],cap:"Once started, only your buddy can unlock your phone.",btn:"Start locked session",label:"Setup"}],after:[{t:"pop",app:"Buddy Lock",sub:"Unlock request sent",big:"0:41:12",pop:["Waiting for Sam","Sam hasn't replied yet."],cap:"Your phone stays locked until Sam unlocks it.",label:"Asking to unlock"}]},
+  "B-09":{main:"Matched",before:[{t:"big",app:"Campus Match",sub:"Finding a partner",icon:"pin",big:"Searching",meter:80,cap:"Scanning every student's live location on campus.",btn:"Cancel",off:1,label:"Searching"}],after:[]},
+  "B-10":{main:"Notifications",before:[{t:"big",app:"Study mode",sub:"Before you start",icon:"lock",big:"Delete all?",cap:"Starting deletes every notification until the semester ends.",btn:"Start study mode",label:"Start"}],after:[]},
+  "B-11":{main:"Inbox",before:[],after:[{t:"pop",app:"Messages",sub:"Lab partner",big:"Hidden",pop:["You can't open this","The app decided this message is a distraction."],cap:"There is no way to see hidden messages.",label:"Trying to open"}]},
+  "B-12":{main:"Filtered",before:[{t:"big",app:"Mind Filter",sub:"Calibrating",icon:"wave",big:"Think of your advisor",meter:45,cap:"Your phone learns your thoughts before it filters.",btn:"Next thought",label:"Calibrate"}],after:[]},
+  "B-21":{main:"My tasks",before:[{t:"list",app:"Project split",sub:"Final report",rows:[["Total tasks","412"],["Each member","20 a day"],["Done when","All claimed"]],cap:"The project is split into hundreds of tiny tasks.",btn:"Start claiming",label:"Split"}],after:[{t:"pop",app:"Midnight",sub:"Auto-assign",big:"12:00 am",pop:["13 tasks assigned","You didn't claim enough today."],cap:"Unclaimed tasks are assigned to you automatically.",label:"At midnight"}]},
+  "B-22":{main:"Assignments",before:[{t:"list",app:"Choose a leader",sub:"Group vote",rows:[["Maya","3 votes"],["Leo","1 vote"]],cap:"The leader will assign every task.",btn:"Confirm leader",label:"Pick a leader"}],after:[{t:"pop",app:"Task assignments",sub:"Your task",big:"Data analysis",pop:["Change request blocked","Only the leader can edit tasks."],cap:"You can't swap, decline or edit your task.",label:"Asking to swap"}]},
+  "B-23":{main:"The split",before:[{t:"big",app:"Auto-split",sub:"Reading every message",icon:"wave",big:"Scanning",meter:70,cap:"Reading all messages each member has ever sent.",btn:"Allow access",label:"Scan chats"}],after:[]},
+  "B-24":{main:"Missed update",before:[{t:"list",app:"Progress board",sub:"Updates due every hour",rows:[["Maya","Updated 2:00 am"],["Ana","Updated 2:00 am"],["Leo","Due now"],["You","Updated 2:00 am"]],cap:"Each member updates their card every hour, day and night.",btn:"Update my card",label:"The board"}],after:[]},
+  "B-25":{main:"Final scores",before:[{t:"list",app:"Contribution tracking",sub:"AI is watching",rows:[["Docs edited","Tracked"],["Messages sent","Tracked"],["Meetings joined","Tracked"]],cap:"An AI turns everyone's activity into a score.",btn:"Got it",label:"Tracking"}],after:[]},
+  "B-26":{main:"Chart",before:[{t:"big",app:"Pen data",sub:"Pair your smart pen",big:"Pen #3",cap:"Write all project work with your pen.",btn:"Pair pen",label:"Pair the pen"}],after:[]},
+  "B-27":{main:"Calendar",before:[],after:[{t:"pop",app:"Group meetings",sub:"Day 14",big:"6:00 pm",pop:["Meeting starts now","Fourteenth meeting in a row."],cap:"Meetings continue every day until the deadline.",label:"Every day"}]},
+  "B-28":{main:"Your meeting",before:[{t:"list",app:"Instructor panel",sub:"All groups",rows:[["Group 1","Fri 8 am"],["Group 2","Fri 10 am"],["Group 3","Mon 7 am"]],cap:"The instructor sets every group's meeting time.",btn:"Lock times",label:"Instructor sets it"}],after:[]},
+  "B-29":{main:"New timetable",before:[{t:"big",app:"Timetable sync",sub:"Connecting to class system",big:"Rearranging",meter:55,cap:"Moving members' classes so you share free time.",btn:"Allow changes",label:"Sync"}],after:[]},
+  "t1-b01-exaggerate":{"main":"Break countdown","before":[{"t":"list","app":"Session setup","sub":"Your plan","rows":[["Study","50 min"],["Break","10 min"],["Siren volume","Max"],["Quiet hours","Not available"]],"cap":"Every break starts and ends with a siren.","btn":"Start session","label":"Setup"}],"after":[{"t":"pop","app":"Break Siren","sub":"11:10 pm","icon":"wave","big":"Break over","pop":["Siren sounding","Heard across your whole floor."],"cap":"The siren plays until you are back at your desk.","label":"Siren goes off"}]},
+  "t1-b01-control":{"main":"Coach's plan","before":[{"t":"list","app":"Your timer","sub":"Settings you saved","rows":[["Study","25 min"],["Break","5 min"],["Status","Ignored by coach"]],"cap":"The coach overrides these settings.","btn":"Edit","off":1,"label":"Your settings"}],"after":[{"t":"pop","app":"Break Coach","sub":"Library, 3:40 pm","big":"Break over","pop":["Break ended early","The coach decided you are ready."],"cap":"The coach picks when you rest.","label":"Break ends"}]},
+  "t1-b01-impractical":{"main":"Break starts","before":[{"t":"list","app":"Set your rhythm","sub":"You choose","rows":[["Study","50 min"],["Break","10 min"],["Favorite snack","Pretzel"],["Appears","Beside phone"]],"cap":"Pick a snack and it shows up at every break.","btn":"Save","label":"Setup"}],"after":[]},
+  "t1-b02-exaggerate":{"main":"Timer running","before":[{"t":"list","app":"Choose length","sub":"Pick a session","rows":[["14 hours","Shortest"],["16 hours","Standard"],["20 hours","Deep focus"]],"cap":"Every flip starts at least fourteen hours.","btn":"Flip to start","label":"Pick length"}],"after":[]},
+  "t1-b02-control":{"main":"Timer running","before":[{"t":"list","app":"Floor timers","sub":"RA view · Hall 3B","rows":[["Weeknights","90 min"],["Weekends","60 min"],["Maya","90 min"],["Student edits","Off"]],"cap":"Your RA sets timer lengths for everyone.","btn":"Apply to floor","label":"RA sets it"}],"after":[]},
+  "t1-b02-impractical":{"main":"Building silent","before":[],"after":[{"t":"list","app":"Noise removed","sub":"Since 9:00 pm","rows":[["Hallway music","Silenced"],["Dryers, floor 2","Silenced"],["Elevator","Silenced"],["Fire alarm test","Silenced"]],"cap":"Nothing in the building makes a sound.","btn":"Keep silent","label":"What went quiet"}]},
+  "t1-b03-control":{"main":"Now playing","before":[{"t":"list","app":"Library sound desk","sub":"Staff view · this week","rows":[["Mon","Rain"],["Tue","Fireplace"],["Wed","Whale songs"],["Student changes","Off"]],"cap":"Library staff set the sound for every student.","btn":"Publish week","label":"Library picks"}],"after":[]},
+  "t1-b03-impractical":{"main":"Now playing","before":[{"t":"list","app":"Pick a topic","sub":"Tonight's study","rows":[["BIO 150","Cell division"],["MATH 221","Limits"],["PSYC 100","Memory"]],"cap":"The app composes music for the topic you pick.","btn":"Start in my head","label":"Choose topic"}],"after":[]},
+  "t1-b04-control":{"main":"Gray mode","before":[],"after":[{"t":"pop","app":"Grayscale Study","sub":"Advisor update","big":"Still gray","pop":["Dr. Patel","Colors stay off until Friday."],"cap":"Your advisor reviewed your week and kept gray mode on.","label":"Advisor decides"}]},
+  "t1-b04-impractical":{"main":"Room gray","before":[{"t":"list","app":"Grayscale","sub":"Choose what turns gray","rows":[["Phone screen","On"],["Your room","On"],["Window view","On"]],"cap":"Everything around you loses its color.","btn":"Turn gray","label":"Turn on"}],"after":[]},
+  "t1-b05-exaggerate":{"main":"Thought form","before":[],"after":[{"t":"list","app":"Parked thoughts","sub":"Tonight","rows":[["Text Sam back","6 min form"],["Laundry","5 min form"],["Movie title","7 min form"]],"cap":"Each thought is saved with its full form.","btn":"Back to reading","label":"Saved list"}]},
+  "t1-b05-control":{"main":"Sorted list","before":[{"t":"big","app":"Park a thought","sub":"Studying CS 225","big":"7 parked","cap":"Tap once to park a thought for later.","btn":"Park thought","label":"While studying"}],"after":[{"t":"pop","app":"Thought Sorter","sub":"Review finished","big":"2 kept","pop":["5 thoughts deleted","The AI decided these weren't worth keeping."],"cap":"The AI sorts your list after each session.","label":"After sorting"}]},
+  "t1-b05-impractical":{"main":"Twin's progress","before":[{"t":"live","app":"Twin arriving","sub":"Copy of you · Live","cap":"Your second self appears next to you.","btn":"Hand over list","label":"Twin appears"}],"after":[]},
+  "t1-b06-control":{"main":"Today's goal","before":[],"after":[{"t":"pop","app":"Goal Streaks","sub":"Monday, 8:00 am","big":"Day 0","pop":["Goal updated","The dean's office set today's goal to 180 min."],"cap":"Only the dean's goal counts toward your streak.","label":"Goal changed"}]},
+  "t1-b06-impractical":{"main":"Your balance","before":[],"after":[{"t":"list","app":"Thursday","sub":"Extended day","rows":[["Normal length","24 h"],["Added","+3 h"],["New length","27 h"],["Ends at","3:00 am Fri"]],"cap":"Your extra hours are added to the day.","btn":"Plan the extra hours","label":"Longer day"}]},
+  "t1-b07-control":{"main":"Study spots","before":[],"after":[{"t":"pop","app":"Focus mode","sub":"You arrived","icon":"pin","big":"Illini Union","pop":["Focus mode is on","The university marked this as your study spot."],"cap":"Focus started automatically on arrival.","label":"Arriving"}]},
+  "t1-b08-exaggerate":{"main":"Photo prompt","before":[],"after":[{"t":"list","app":"Weekly gallery","sub":"This week","rows":[["Photos","1,214"],["Lines written","1,214"],["Sessions","5"]],"cap":"One photo for every line of notes.","btn":"View gallery","label":"Gallery"}]},
+  "t1-b08-control":{"main":"Your gallery","before":[{"t":"big","app":"Snapshot sent","sub":"Waiting for TA review","icon":"pin","big":"Pending","cap":"Your TA will decide if this session counts.","btn":"Done","label":"Snap your work"}],"after":[{"t":"list","app":"TA review","sub":"TA view, 14 students","rows":[["Maya, Thu","Approve"],["Leo, Thu","Reject"],["You, Thu","Reject"]],"cap":"The TA approves or rejects each snapshot.","btn":"Save decisions","label":"TA decides"}]},
+  "t1-b08-impractical":{"main":"Snap and tidy","before":[],"after":[{"t":"list","app":"Weekly gallery","sub":"Oct 19 to 25","rows":[["Mon","Essay draft · tidied"],["Tue","Lab report · tidied"],["Wed","Reading · tidied"]],"cap":"Every snapshot left a clean room behind.","btn":"View all","label":"Gallery"}]},
+  "t1-b09-control":{"main":"Waiting","before":[],"after":[{"t":"pop","app":"Mia's phone","sub":"Sibling approver","big":"1 request","pop":["Leo wants Instagram","Approve or deny?"],"cap":"Your sibling decides each time.","btn":"Deny","label":"Sibling's view"}]},
+  "t1-b09-impractical":{"main":"Brick mode","before":[{"t":"list","app":"Pause settings","sub":"Flagged apps","rows":[["Instagram","10 sec"],["TikTok","15 sec"],["Pause type","Solid brick"]],"cap":"Pick how long your phone stays a brick.","btn":"Save","label":"Settings"}],"after":[]},
+  "t1-b10-exaggerate":{"main":"Plan tomorrow","before":[],"after":[{"t":"pop","app":"Minute Planner","sub":"Tomorrow, 12:31 pm","big":"12:31 pm","pop":["Next block","Chew lunch, bite 3."],"cap":"A reminder arrives every minute.","label":"Reminders"}]},
+  "t1-b10-control":{"main":"Tomorrow's plan","before":[],"after":[{"t":"pop","app":"Block moved","sub":"Tuesday","big":"9:00 pm","pop":["MATH 241 moved","Was 2 pm. The app chose a better time."],"cap":"The app moves blocks when it thinks best.","label":"Block moved"}]},
+  "t1-b10-impractical":{"main":"Tomorrow's video","before":[],"after":[{"t":"list","app":"Tomorrow's blocks","sub":"Based on the preview","rows":[["9:00 am","CHEM 202 reading"],["2:00 pm","Lab runs late"],["7:00 pm","Problem set"]],"cap":"Blocks set around what the video showed.","btn":"Save plan","label":"Plan blocks"}]},
+  "t2-b01-exaggerate":{"main":"Current roles","before":[],"after":[{"t":"pop","app":"Role Rotation","sub":"3:00 pm","big":"Switch #7","pop":["New role","Leo, you are now the editor."],"cap":"Your seventh job change today.","label":"Hourly switch"}]},
+  "t2-b01-control":{"main":"Weekly roles","before":[{"t":"list","app":"Role picker","sub":"Based on GPA","rows":[["Ana","3.95"],["Maya","3.70"],["Leo","3.40"],["Sam","3.20"]],"cap":"Ana picks roles for the whole group.","btn":"Continue","label":"GPA ranking"}],"after":[]},
+  "t2-b01-impractical":{"main":"Downloading skills","before":[{"t":"bars","app":"Role vote","sub":"Week 6 rotation","bars":[["Leo to Editor",75],["Ana to Notes",50],["Sam to Slides",100]],"cap":"The group votes on who takes which role.","btn":"Confirm rotation","label":"Weekly vote"}],"after":[{"t":"list","app":"Leo's skills","sub":"Editor role","rows":[["APA style","Installed"],["Proofreading","Installed"],["Ready","Now"]],"cap":"Leo can edit like an expert right away.","btn":"Start editing","label":"Ready"}]},
+  "t2-b02-exaggerate":{"main":"Versions","before":[],"after":[{"t":"big","app":"Folder size","sub":"Shared folder","big":"2.3M files","meter":97,"cap":"Every copy is kept forever.","btn":"Keep typing","label":"Folder status"}]},
+  "t2-b02-control":{"main":"Group folder","before":[],"after":[{"t":"pop","app":"File Hub","sub":"Tue 9:15 am","big":"1 removed","pop":["Campus IT","Survey_v2.docx was not approved."],"cap":"The group cannot restore removed files.","label":"IT decides"}]},
+  "t2-b03-control":{"main":"Concerns","before":[],"after":[{"t":"pop","app":"Concern Box","sub":"Monday, 9:00 am","big":"1 change","pop":["Professor's decision","Sam moves to formatting. Group must follow."],"cap":"The group cannot change the decision.","label":"Decision"}]},
+  "t2-b03-impractical":{"main":"Concern posted","before":[{"t":"list","app":"New concern","sub":"Anonymous","rows":[["Concern","Behind on survey"],["Name shown","No"],["Delivered to","Every room wall"]],"cap":"Your concern will be painted on each member's wall.","btn":"Post concern","label":"Write it"}],"after":[]},
+  "t2-b04-exaggerate":{"main":"Quota board","before":[],"after":[{"t":"pop","app":"Kudos Wall","sub":"Reminder","big":"15 of 50","pop":["35 notes left today","Thank a teammate before midnight."],"cap":"Every member sends fifty notes daily.","label":"Reminder"}]},
+  "t2-b04-control":{"main":"Kudos Wall","before":[{"t":"list","app":"Leader tools","sub":"Maya's view","rows":[["Leo","Give kudos"],["Sam","Give kudos"],["Ana","Not yet"],["Members can post","Off"]],"cap":"The leader picks who gets thanked.","btn":"Post to wall","label":"Leader picks"}],"after":[]},
+  "t2-b05-exaggerate":{"main":"Open polls","before":[{"t":"pop","app":"Group report","sub":"Draft, 2 sentences","big":"Poll 48","pop":["New poll","Approve: \"Results were mixed.\""],"cap":"Every sentence starts its own poll.","label":"New sentence"}],"after":[]},
+  "t2-b05-control":{"main":"Poll result","before":[{"t":"list","app":"New poll","sub":"Started by Ana","rows":[["Question","Where do we meet?"],["Options","3"],["Votes counted","Yes"],["Winner picked by","The app"]],"cap":"Everyone votes, then the app decides.","btn":"Send poll","label":"Start poll"}],"after":[]},
+  "t2-b06-control":{"main":"Charter","before":[{"t":"list","app":"Charter writers","sub":"ADV 310 group","rows":[["Maya's mom","Joined"],["Leo's dad","Joined"],["Ana's parents","Invited"]],"cap":"Parents write the team agreement together.","btn":"Send invites","label":"Invite parents"}],"after":[]},
+  "t2-b06-impractical":{"main":"Charter active","before":[{"t":"list","app":"Sign charter","sub":"COMM 201 group","rows":[["Deadlines","Sundays 9 pm"],["Chat","Group text"],["Disagreements","Disabled"]],"cap":"Once signed, no one can disagree.","btn":"Sign","label":"Sign"}],"after":[]},
+  "t2-b07-exaggerate":{"main":"Record update","before":[],"after":[{"t":"list","app":"To listen","sub":"Before Monday's meeting","rows":[["Ana","2 h 05 min"],["Sam","2 h 00 min"],["Maya","2 h 12 min"]],"cap":"You have 6 h 17 min left to hear.","btn":"Play all","label":"Listen queue"}]},
+  "t2-b07-control":{"main":"Group feed","before":[{"t":"big","app":"Record update","sub":"Sam · 9:00 pm","icon":"wave","big":"2:04","cap":"The AI will rewrite this before anyone hears it.","btn":"Send to AI","label":"Record"}],"after":[]},
+  "t2-b07-impractical":{"main":"Echo status","before":[{"t":"big","app":"Record update","sub":"INFO 490 group","icon":"wave","big":"0:42","cap":"Your memo will echo to each teammate.","btn":"Release echo","label":"Record"}],"after":[]},
+  "t2-b08-exaggerate":{"main":"Review progress","before":[],"after":[{"t":"pop","app":"Swap Marathon","sub":"Review 31 of 48","big":"17 left","pop":["Your turn again","Review Sam's intro for the 8th time."],"cap":"The draft stays locked until every review is done.","label":"Next review"}]},
+  "t2-b08-control":{"main":"Your pairing","before":[],"after":[{"t":"pop","app":"Draft Swap","sub":"Tue, 10:00 pm","big":"10 h left","pop":["Review due","Comments for Ana due at 8:00 am."],"cap":"You cannot decline this review.","label":"Deadline"}]},
+  "t2-b09-exaggerate":{"main":"Lock screen","before":[{"t":"bars","app":"Milestone vote","sub":"INFO 303 · Group 4","bars":[["Outline Oct 25",100],["Draft Nov 2",75],["Final Nov 15",50]],"cap":"The group votes on each milestone date.","btn":"Start countdowns","label":"Vote"}],"after":[]},
+  "t2-b09-impractical":{"main":"Slow time","before":[{"t":"bars","app":"Milestone vote","sub":"Group votes","bars":[["Outline",100],["Draft",75],["Final",50]],"cap":"Members voted on each milestone date.","btn":"Lock milestones","label":"Vote"}],"after":[]},
+  "t2-b10-control":{"main":"Workload","before":[],"after":[{"t":"pop","app":"Workload Meter","sub":"Sun 11:30 pm","big":"2 moved","pop":["Tasks reassigned","Leo's slides moved to Ana."],"cap":"The app moved tasks without asking the group.","label":"Auto move"}]},
+  "t2-b10-impractical":{"main":"Effort meter","before":[],"after":[{"t":"pop","app":"Effort Sensor","sub":"Thursday, 6:15 pm","big":"12%","icon":"wave","pop":["Low brain effort","Sam's brain worked less than the group."],"cap":"The sensor knows exactly how hard you thought.","label":"Alert"}]}
+};
+function screensFor(id){
+  var sc=SCREENS[id];if(!sc)return [];
+  var f=FLOW[id]||{before:[],after:[]};
+  var main=Object.assign({},sc.s,{label:f.main||"Main screen"});
+  return (f.before||[]).concat([main]).concat(f.after||[]);
+}
+function phoneViewer(c){
+  var list=screensFor(c.id);if(!list.length)return '';
+  V.scr=V.scr||{};var i=V.scr[c.id]||0;if(i>=list.length)i=0;
+  var cur=list[i];
+  return '<figure class="phone-wrap" aria-label="Mock screens of '+esc(c.title)+'">'+
+    '<figcaption class="k">What it looks like · screen '+(i+1)+' of '+list.length+'</figcaption>'+
+    phone(cur)+
+    '<div class="scr-nav"><button type="button" class="scr-arrow" data-a="scr" data-v="-1" aria-label="Previous screen"'+(i===0?' disabled':'')+'>‹</button>'+
+    '<div class="scr-chips">'+list.map(function(s,n){return '<button type="button" class="scr-chip" data-a="scrgo" data-v="'+n+'" aria-pressed="'+(n===i)+'">'+(n+1)+' · '+esc(s.label)+'</button>';}).join('')+'</div>'+
+    '<button type="button" class="scr-arrow" data-a="scr" data-v="1" aria-label="Next screen"'+(i===list.length-1?' disabled':'')+'>›</button></div></figure>';
+}
+function planBlock(c){
+  var p=PLANS[c.id]||{}, sc=SCREENS[c.id];
+  return '<section class="plan" aria-labelledby="ws-h"><p class="lbl">AI plan'+(c.d?' · '+TWISTS[c.d].label:'')+'</p><h2 id="ws-h">'+esc(c.title)+'</h2><p class="planline">'+esc(c.text)+'</p>'+
+    '<div class="plan-body"><div class="plan-text">'+
+      (sc?'<div><p class="k">Why it helps</p><p>'+esc(sc.pitch)+'</p></div>':'')+
+      '<div><p class="k">Who it is for</p><p>'+esc(p.who||'')+'</p></div>'+
+      '<div><p class="k">How it works</p><ol>'+(p.steps||[]).map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol></div>'+
+      '<div><p class="k">A moment of use</p><p>'+esc(p.moment||'')+'</p></div>'+
+    '</div>'+(sc?phoneViewer(c):'')+
+    '</div></section>';
+}
+
+/* ---------- state ---------- */
+var app = document.getElementById("app");
+/* ===== SETTINGS: paste your Google Apps Script web app URL here ===== */
+var ENDPOINT = "https://script.google.com/macros/s/AKfycbzLE8JTmu64EFrXdLWeHyaPOrllOzkvNK15vCtMuozaMC9gjSAehK_g8laoQADqEYPm/exec";
+/* ==================================================================== */
+var REMOTE = /^https:\/\//.test(ENDPOINT);
+var QS = new URLSearchParams(location.search);
+var RKEY = QS.get("researcher") || "";
+var S = null;            // current session
+var V = {view:"setup", researchTab:"sessions", poolTask:"all", previewV:null, setupTask:"t1", setupCond:"bad", setupCode:""};
+var cap = {db:null, dl:null, tried:false};
+var sessionsLive = null, unsubSessions = null;
+var stepStart = Date.now();
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function uid(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function nowIso(){return new Date().toISOString();}
+function lsGet(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){t.hidden=true;},2600);}
+
+function newSession(code,task,cond){
+  return {sid:uid("s"),participant:code||"anon",task:task,condition:cond,startedAt:nowIso(),updatedAt:nowIso(),
+    step:"explore",twist:null,ideas:[],shown:[],rejected:[],works:{},activeKey:null,
+    final:{ideaId:null,who:"",how:"",moment:"",limits:""},events:[],submitted:false};
+}
+function log(type,detail,cardId){
+  if(!S)return;
+  S.events.push({t:nowIso(),step:S.step,type:type,cardId:cardId||"",detail:detail||""});
+  persist();
+}
+
+/* ---------- persistence ---------- */
+var saveTimer=null, saveState="idle";
+function persist(){
+  if(!S)return;
+  S.updatedAt=nowIso();
+  lsSet("iw-current",S);
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(pushRemote,1200);
+}
+function pushRemote(){
+  if(!S)return;
+  var hist=lsGet("iw-history")||[];
+  hist=hist.filter(function(h){return h.sid!==S.sid;});hist.unshift(JSON.parse(JSON.stringify(S)));lsSet("iw-history",hist.slice(0,30));
+  if(!REMOTE){setSaveState("local");return;}
+  try{
+    fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(S),keepalive:true})
+      .then(function(r){setSaveState(r.ok?"shared":"local");},function(){setSaveState("local");});
+  }catch(e){setSaveState("local");}
+}
+function setSaveState(s){saveState=s;var el=document.getElementById("savestate");if(el)el.textContent=saveLabel();}
+function saveLabel(){
+  if(saveState==="shared")return "Saved for the research team";
+  if(saveState==="local")return "Saved on this device only";
+  if(saveState==="full")return "Shared storage is full. Saved on this device only";
+  return "";
+}
+
+/* ---------- card drawing ---------- */
+function poolFor(){return CARDS.filter(function(c){return c.task===S.task&&c.type===S.condition;});}
+function unseen(list){return list.filter(function(c){return S.shown.indexOf(c.id)<0;});}
+function drawInitial(){
+  var pool=poolFor(), picks=[];
+  if(S.condition==="good"){picks=shuffle(pool).slice(0,3);}
+  else{
+    var used={};
+    shuffle(["exaggerate","control","impractical"]).forEach(function(d){
+      var opts=shuffle(pool.filter(function(c){return c.d===d&&!used[c.from];}));
+      if(!opts.length)opts=shuffle(pool.filter(function(c){return c.d===d;}));
+      if(opts.length){picks.push(opts[0]);used[opts[0].from]=1;}
+    });
+  }
+  picks.forEach(function(c){S.shown.push(c.id);log("card_shown","initial",c.id);});
+}
+function drawAnother(){
+  var opts=shuffle(unseen(poolFor()));
+  if(!opts.length){toast("No more suggestions in this set.");return;}
+  S.shown.push(opts[0].id);log("card_shown","show_another",opts[0].id);render();
+}
+function drawTwist(){
+  var d=S.twist;if(!d){toast("Pick a flaw first.");return;}
+  var left=unseen(poolFor());
+  var opts=shuffle(d==="mix"?left:left.filter(function(c){return c.d===d;}));
+  if(!opts.length){toast(d==="mix"?"No more suggestions in this set.":"No more suggestions with this flaw. Try another one.");return;}
+  var c=opts[0];S.shown.push(c.id);
+  S.works[c.id]=S.works[c.id]||blankWork(c.id,true);S.works[c.id].viaTwist=true;
+  S.picked=S.picked||{};S.picked[c.id]=d;
+  var pw=activeWork();if(pw)snapshot(pw);
+  S.activeKey=c.id;V.previewV=null;
+  log("card_shown","flaw_choice:"+d,c.id);log("card_opened","auto",c.id);render();
+}
+function leftFor(d){var left=unseen(poolFor());return d==="mix"?left.length:left.filter(function(c){return c.d===d;}).length;}
+
+/* ---------- workspace ---------- */
+function blankWork(key,twist){return {key:key,tab:"critique",critique:"",extract:"",nothing:false,name:"",body:"",versions:[],ideaId:null,viaTwist:!!twist};}
+function activeWork(){return S.activeKey?S.works[S.activeKey]:null;}
+function openCard(id){
+  if(!S.works[id])S.works[id]=blankWork(id,false);
+  S.activeKey=id;V.previewV=null;log("card_opened","",id);render();
+}
+function openOwn(){
+  var key=uid("own");S.works[key]=blankWork(key,false);S.works[key].tab="transform";S.works[key].own=true;
+  S.activeKey=key;V.previewV=null;log("own_idea_started","",""); render();
+}
+function snapshot(w){
+  var last=w.versions[w.versions.length-1];
+  var cur={critique:w.critique,extract:w.nothing?"(nothing worth keeping)":w.extract,name:w.name,body:w.body};
+  if(!cur.critique&&!cur.extract&&!cur.name&&!cur.body)return;
+  if(last&&last.critique===cur.critique&&last.extract===cur.extract&&last.name===cur.name&&last.body===cur.body)return;
+  cur.n=w.versions.length+1;cur.t=nowIso();w.versions.push(cur);
+  log("version_saved","v"+cur.n,w.own?"":w.key);
+}
+function setTab(tab){var w=activeWork();if(!w)return;snapshot(w);w.tab=tab;V.previewV=null;log("tab_view",tab,w.own?"":w.key);render();}
+function saveToIdeas(){
+  var w=activeWork();if(!w)return;
+  if(!w.body.trim()&&!w.name.trim()){toast("Describe your concept first.");return;}
+  snapshot(w);
+  var text=w.body.trim(), name=w.name.trim();
+  if(w.ideaId){var it=S.ideas.find(function(i){return i.id===w.ideaId;});if(it){it.text=text;it.name=name;}}
+  else{var id=uid("i");w.ideaId=id;S.ideas.push({id:id,text:text,name:name,source:w.own?"own":"card",cardId:w.own?"":w.key});}
+  log("saved_to_ideas",name||text.slice(0,60),w.own?"":w.key);toast("Saved to your ideas.");render();
+}
+
+/* ---------- step navigation ---------- */
+function go(step){
+  if(!S)return;
+  var w=activeWork();if(w)snapshot(w);
+  S.step=step;stepStart=Date.now();log("step_enter",step,"");
+  render();window.scrollTo(0,0);
+}
+
+/* ---------- CSV ---------- */
+function csvCell(v){v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+function sessionRows(s){
+  var rows=[];
+  (s.events||[]).forEach(function(e){
+    var c=CARD[e.cardId]||{};
+    rows.push([s.sid,s.participant,s.task,s.condition,e.t,e.step,e.type,e.cardId,c.type||"",c.d?TWISTS[c.d].rname:"",e.detail]);
+  });
+  (s.ideas||[]).forEach(function(i){
+    rows.push([s.sid,s.participant,s.task,s.condition,"","final","idea_record",i.cardId||"",i.source,"",(i.name?i.name+": ":"")+i.text]);
+  });
+  if(s.submitted&&s.final){
+    var f=s.final;rows.push([s.sid,s.participant,s.task,s.condition,s.updatedAt,"final","final_concept",f.ideaId||"","","","who: "+f.who+" | how: "+f.how+" | moment: "+f.moment+" | limits: "+f.limits]);
+  }
+  return rows;
+}
+function toCsv(list){
+  var head=["session_id","participant","task","card_set","time","step","event","card_id","card_type","distortion","detail"];
+  var out=[head.join(",")];
+  list.forEach(function(s){sessionRows(s).forEach(function(r){out.push(r.map(csvCell).join(","));});});
+  return out.join("\n");
+}
+function offerCsv(list,name){
+  if(!list.length){toast("No sessions to export yet.");return;}
+  var csv=toCsv(list);
+  try{
+    var a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));
+    a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);toast("Export ready.");
+  }catch(e){showCsvFallback(csv);}
+}
+function showCsvFallback(csv){V.csvText=csv;render();toast("Downloads are unavailable here. Copy the CSV below.");}
+
+/* ---------- render helpers ---------- */
+var LOGO='<svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="7" fill="var(--accent)"></rect><path d="M9 18l5-9 5 9" stroke="var(--accent-ink)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+function topbar(){
+  var steps="";
+  if(S&&V.view==="session"){
+    var order=["critique","extract","transform","final"], names=["1 · Critique","2 · Extract","3 · Transform","Finish"];
+    var aw=activeWork(), idx=-1;
+    if(S.submitted)idx=4; else if(S.step==="final")idx=3; else if(aw)idx=aw.own?2:order.indexOf(aw.tab);
+    steps='<nav aria-label="Session steps"><ol class="steps">'+order.map(function(s,i){
+      return '<li class="'+(i<idx?"done":i===idx?"now":"")+'"'+(i===idx?' aria-current="step"':'')+'>'+names[i]+'</li>';}).join("")+'</ol></nav>';
+  }
+  var meta="";
+  if(S&&V.view==="session"&&!S.submitted){
+    meta='<div class="meta"><span class="pill">'+esc(TASKS[S.task].short)+'</span><span class="muted tnum" id="timer">0:00 in this step</span></div>';
+  } else if(V.view==="research"){meta='<div class="meta"><span class="pill">Researcher view</span></div>';}
+  return '<header class="topbar"><div class="wrap"><button type="button" class="brand" data-a="home" aria-label="Idea Workbench, back to start">'+LOGO+'Idea Workbench</button>'+steps+meta+'</div></header>';
+}
+
+function viewSetup(){
+  var resume=lsGet("iw-current");
+  var canResume=resume&&!resume.submitted;
+  return '<main><div class="wrap"><div class="setup-grid">'+
+  '<section class="panel" aria-labelledby="st-h">'+
+    '<p class="eyebrow">Facilitator setup</p>'+
+    '<h1 id="st-h" style="font-size:34px">Start a session</h1>'+
+    '<p class="lead">Set up the session before handing the device to a participant.</p>'+
+    '<form id="setup" class="panel" style="padding:0;border:0;gap:16px">'+
+      '<div class="field"><label for="pcode">Participant code</label><input id="pcode" class="input" placeholder="For example P01" value="'+esc(V.setupCode)+'" autocomplete="off"></div>'+
+      '<fieldset class="twists"><legend>Design task</legend>'+
+        ['t1','t2'].map(function(t){return '<label class="opt"><input type="radio" name="task" value="'+t+'"'+(V.setupTask===t?' checked':'')+'><span><b>'+esc(TASKS[t].short)+'</b><br><span class="muted" style="font-size:13px">'+esc(TASKS[t].text)+'</span></span></label>';}).join("")+
+      '</fieldset>'+
+      '<div class="row"><button type="submit" class="btn btn-primary">Start session</button>'+
+      (canResume?'<button type="button" class="btn btn-ghost" data-a="resume">Resume '+esc(resume.participant)+'</button>':'')+'</div>'+
+    '</form>'+
+  '</section>'+
+  '<section class="panel" aria-labelledby="hw-h">'+
+    '<h2 id="hw-h" style="font-size:22px">How a session runs</h2>'+
+    '<p style="font-size:14px"><b>Start.</b> The participant picks a flaw: push it to the extreme, flip who decides, or make it unrealistic. The AI writes a plan with that flaw: who it is for, how it works, and a moment of use. They read it, then work through three steps.</p>'+
+    '<ol class="ideas">'+
+      '<li><span class="num">1</span><span><b>Critique.</b> Find limits, risky assumptions, and ways it could fail.</span></li>'+
+      '<li><span class="num">2</span><span><b>Extract.</b> Name an element or principle worth keeping, if any.</span></li>'+
+      '<li><span class="num">3</span><span><b>Transform.</b> Develop a revised or new concept in your own words.</span></li>'+
+    '</ol>'+
+    '<p style="font-size:14px"><b>Finish.</b> They pick one concept and describe who it is for, how it works, a moment of use, and its limits.</p>'+
+    '<p class="muted" style="font-size:14px">Every step, card and saved version is logged with a timestamp. Open the researcher view to see sessions and export a CSV.</p>'+
+    '<div class="row"><button type="button" class="btn btn-outline" data-a="research">Open researcher view</button></div>'+
+  '</section>'+
+  '</div></div></main>';
+}
+
+function viewIdeas(){
+  var list=S.ideas.filter(function(i){return i.source==="solo";});
+  return '<main><div class="wrap"><div class="cols">'+
+  '<section class="side" style="max-width:480px">'+
+    '<p class="eyebrow">Step 1 of 3</p><h1 style="font-size:36px">Start with your own ideas</h1>'+
+    '<p class="lead">Spend a few minutes on your own before you see any suggestions. There are no wrong answers.</p>'+
+    '<div class="panel"><p class="tag">Your task</p><p class="brief">'+esc(TASKS[S.task].text)+'</p></div>'+
+  '</section>'+
+  '<section class="mainc"><div class="panel" aria-labelledby="yi-h">'+
+    '<div class="row between"><h2 id="yi-h" style="font-size:22px">Your ideas</h2><span class="muted">'+list.length+' so far</span></div>'+
+    (list.length?'<ol class="ideas">'+list.map(function(i,n){return '<li><span class="num">'+(n+1)+'</span><span style="min-width:0;overflow-wrap:anywhere">'+esc(i.text)+'</span></li>';}).join("")+'</ol>':'<p class="muted">Your ideas will appear here. Add the first one below.</p>')+
+    '<form id="addidea" class="field"><label for="newidea">Add an idea</label><div class="row"><input id="newidea" class="input" style="flex:1 1 260px;min-width:0" placeholder="Describe one idea in a sentence or two" autocomplete="off"><button type="submit" class="btn btn-outline">Add</button></div></form>'+
+    '<div class="row between" style="border-top:1px solid var(--line);padding-top:14px"><p class="status" id="savestate">'+esc(saveLabel())+'</p><button type="button" class="btn btn-primary" data-a="to-explore">Continue to suggestions</button></div>'+
+  '</div></section></div></div></main>';
+}
+
+function cardLabel(c,i){
+  return c.d?"AI plan · "+TWISTS[c.d].label:"AI suggestion";
+}
+function viewExplore(){
+  var visible=S.shown.filter(function(id){return S.rejected.indexOf(id)<0;});
+  var side='<aside class="side" aria-labelledby="sg-h"><h2 id="sg-h" style="font-size:22px">Suggestions</h2>'+
+    '<div class="note"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" style="flex:none;margin-top:1px"><circle cx="9" cy="9" r="7.5" stroke="currentColor" stroke-width="1.5" fill="none"></circle><path d="M9 8v4.5M9 5.5v.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg><p>Pick the kind of flaw you want. The AI writes a plan with that flaw. Read it, then critique it, keep what works, and make it your own.</p></div>';
+  var opts=Object.keys(TWISTS).map(function(k){return [k,TWISTS[k].label,TWISTS[k].hint];});
+  side+='<fieldset class="twists"><legend>Which flaw do you want?</legend>'+
+    opts.map(function(o){var n=leftFor(o[0]);return '<label class="opt"><input type="radio" name="twist" value="'+o[0]+'"'+(S.twist===o[0]?' checked':'')+(n?'':' disabled')+' data-a="twist"><span><b>'+o[1]+'</b><br><span class="muted" style="font-size:13px">'+o[2]+(n?'':' None left.')+'</span></span></label>';}).join("")+
+    '</fieldset><button type="button" class="btn btn-primary" data-a="draw-twist"'+(S.twist&&leftFor(S.twist)?'':' disabled')+'>Get an AI plan</button>';
+  side+=visible.slice().reverse().map(function(id){
+    var c=CARD[id], i=S.shown.indexOf(id);var act=S.activeKey===id;
+    return '<article class="sug'+(act?' active':'')+'"><p class="lbl">'+esc(cardLabel(c,i))+(act?' · working on it':'')+'</p><h3>'+esc(c.title)+'</h3><p>'+esc(c.text)+'</p>'+
+      (act?'':'<div class="acts"><button type="button" class="btn btn-dark" data-a="open" data-id="'+id+'">Open this plan</button><button type="button" class="btn btn-card" data-a="reject" data-id="'+id+'">Not useful</button></div>')+'</article>';
+  }).join("");
+  if(!visible.length)side+='<p class="muted">'+(S.shown.length?'You set aside every suggestion. Get another one or start your own idea.':'AI plans you get will be listed here.')+'</p>';
+  side+='<button type="button" class="btn btn-dashed" data-a="own">+ Start my own idea</button></aside>';
+
+  var w=activeWork(), main;
+  if(!w){
+    main='<div class="panel empty"><h2 style="font-size:26px">'+(S.shown.length?'Pick a suggestion to work on':'Choose a flaw to get your first AI plan')+'</h2><p class="lead">Or start your own idea. For each suggestion you can do any of these, in any order.</p>'+
+      '<div class="grid3"><div class="mini"><b>Critique</b><span class="muted" style="font-size:13px">How could it fail? What does it assume?</span></div><div class="mini"><b>Extract</b><span class="muted" style="font-size:13px">Is anything worth keeping?</span></div><div class="mini"><b>Transform</b><span class="muted" style="font-size:13px">Turn it into your own concept.</span></div></div></div>';
+  } else main=workspace(w);
+  var mine='<div class="panel row between" style="flex-direction:row;padding:18px 22px"><div><p style="font-weight:700">My ideas · '+S.ideas.length+'</p><p class="muted" style="font-size:13px">Concepts you saved while working with suggestions.</p></div><button type="button" class="btn btn-primary" data-a="to-final"'+(S.ideas.length?'':' disabled')+'>Continue to final concept</button></div>';
+  return '<main><div class="wrap"><div class="cols">'+side+'<section class="mainc">'+main+mine+'<p class="status" id="savestate">'+esc(saveLabel())+'</p></section></div></div></main>';
+}
+
+function workspace(w){
+  var c=w.own?null:CARD[w.key];
+  var h='<div class="panel" aria-labelledby="ws-h">';
+  if(c){h+=planBlock(c);
+    var tabs=[["critique","1 · Critique",!!w.critique],["extract","2 · Extract",!!(w.extract||w.nothing)],["transform","3 · Transform",!!w.body]];
+    h+='<div class="tabs" role="tablist" aria-label="Work steps">'+tabs.map(function(t){var sel=w.tab===t[0];
+      return '<button type="button" role="tab" class="tab'+(t[2]&&!sel?' done':'')+'" aria-selected="'+sel+'" data-a="tab" data-v="'+t[0]+'">'+(t[2]&&!sel?'<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>':'')+t[1]+'</button>';}).join("")+'</div>';
+  } else {
+    h+='<p class="eyebrow">Your own idea</p><h2 id="ws-h" style="font-size:24px">Start from scratch</h2>';
+  }
+  if(w.tab==="critique"){
+    h+='<div class="field"><h3 style="font-size:22px">How could this idea fail?</h3><p class="muted">'+(w.viaTwist&&c?'You chose <b>'+TWISTS[c.d].label+'</b>. Say how exactly it goes wrong, and what else could fail.':'Think about what it assumes and who it would frustrate.')+'</p></div>'+
+      '<div class="chips" aria-label="Optional prompts">'+["Who loses out?","What could go wrong?","What is it assuming?"].map(function(p){return '<button type="button" class="chipbtn" data-a="chip" data-v="'+esc(p)+'">'+p+'</button>';}).join("")+'</div>'+
+      '<div class="field"><label for="f-critique">Your critique</label><textarea id="f-critique" class="area focus" data-f="critique" placeholder="Write what could go wrong">'+esc(w.critique)+'</textarea></div>';
+  } else if(w.tab==="extract"){
+    if(w.critique)h+='<div class="recap"><b class="muted">Your critique</b><p>'+esc(w.critique)+'</p></div>';
+    h+='<div class="field"><h3 style="font-size:22px">Is anything worth keeping?</h3><p class="muted">Name an element, goal or principle you could reuse. It is fine if the answer is nothing.</p></div>'+
+      '<div class="field"><label for="f-extract">What you would keep</label><textarea id="f-extract" class="area focus" data-f="extract" placeholder="For example: outside accountability helps me start"'+(w.nothing?' disabled':'')+'>'+esc(w.extract)+'</textarea></div>'+
+      '<label class="row" style="font-size:14px;gap:8px"><input type="checkbox" id="f-nothing" data-a="nothing"'+(w.nothing?' checked':'')+' style="width:18px;height:18px;accent-color:var(--accent)"> Nothing worth keeping</label>';
+  } else {
+    if(c){
+      h+='<div class="keep"><b>You kept</b><p>'+esc(w.nothing?"Nothing":(w.extract||"Nothing yet"))+'</p></div>';
+      h+='<div class="field"><h3 style="font-size:22px">Make it your own concept</h3><p class="muted">Revise the suggestion or start fresh from what you kept. Use your own words.</p></div>';
+    }
+    h+='<div class="field"><label for="f-name">Concept name</label><input id="f-name" class="input" data-f="name" value="'+esc(w.name)+'" placeholder="Give it a short name" autocomplete="off"></div>'+
+      '<div class="field"><label for="f-body">How it works</label><textarea id="f-body" class="area focus" data-f="body" placeholder="Describe how your feature works">'+esc(w.body)+'</textarea></div>';
+  }
+  // versions
+  var vh='';
+  if(w.versions.length){
+    vh='<div class="vers"><span class="muted">Versions</span>'+w.versions.map(function(v){return '<button type="button" class="vchip" data-a="ver" data-v="'+v.n+'" aria-pressed="'+(V.previewV===v.n)+'">v'+v.n+'</button>';}).join("")+'</div>';
+    if(V.previewV){var pv=w.versions[V.previewV-1];if(pv)vh+='<div class="recap" style="font-size:13px"><b>Version '+pv.n+'</b>'+(pv.critique?'<p><b>Critique:</b> '+esc(pv.critique)+'</p>':'')+(pv.extract?'<p><b>Keep:</b> '+esc(pv.extract)+'</p>':'')+(pv.name||pv.body?'<p><b>Concept:</b> '+esc(pv.name)+(pv.name&&pv.body?' · ':'')+esc(pv.body)+'</p>':'')+'</div>';}
+  } else vh='<span class="muted" style="font-size:13px">Versions are saved as you move between steps.</span>';
+  var acts='';
+  if(!w.own&&w.tab==="critique")acts='<button type="button" class="btn btn-ghost" data-a="reject-active">Not useful, set aside</button><button type="button" class="btn btn-primary" data-a="tab" data-v="extract">Next: Extract</button>';
+  else if(!w.own&&w.tab==="extract")acts='<button type="button" class="btn btn-primary" data-a="tab" data-v="transform">Next: Transform</button>';
+  else acts='<button type="button" class="btn btn-primary" data-a="save-idea">'+(w.ideaId?'Update my idea':'Save to my ideas')+'</button>';
+  h+='<div class="row between" style="border-top:1px solid var(--line);padding-top:14px"><div style="display:flex;flex-direction:column;gap:8px;min-width:0">'+vh+'</div><div class="row">'+acts+'</div></div></div>';
+  return h;
+}
+
+function viewFinal(){
+  var f=S.final;
+  var src={solo:"Before suggestions",card:"Built from a suggestion",own:"My own idea"};
+  var list='<fieldset class="twists"><legend class="muted">My ideas · '+S.ideas.length+'</legend>'+S.ideas.map(function(i){
+    var extra=i.source==="card"&&CARD[i.cardId]?" · "+CARD[i.cardId].title:"";
+    return '<label class="opt"><input type="radio" name="final" value="'+i.id+'" data-a="pick-final"'+(f.ideaId===i.id?' checked':'')+'><span style="min-width:0;overflow-wrap:anywhere">'+(i.name?'<b>'+esc(i.name)+'</b><br>':'')+esc(i.text)+'<br><span class="tag">'+src[i.source]+esc(extra)+'</span></span></label>';}).join("")+'</fieldset>';
+  var chosen=S.ideas.find(function(i){return i.id===f.ideaId;});
+  var form;
+  if(!chosen){form='<div class="panel empty"><h2 style="font-size:24px">Pick one idea to develop</h2><p class="lead">Choose the idea you want reviewed. You can still go back to the suggestions.</p></div>';}
+  else{
+    form='<form id="finalform" class="panel" aria-labelledby="fc-h"><div class="field"><h2 id="fc-h" style="font-size:24px">'+esc(chosen.name||"Your final concept")+'</h2><p class="muted">'+esc(chosen.text)+'</p></div>'+
+      '<div class="grid2">'+[["who","Who is it for?"],["how","How does it work?"],["moment","A moment of use"],["limits","Limitations"]].map(function(q){
+        return '<div class="field"><label for="ff-'+q[0]+'">'+q[1]+'</label><textarea id="ff-'+q[0]+'" class="area" style="min-height:96px" data-ff="'+q[0]+'">'+esc(f[q[0]])+'</textarea></div>';}).join("")+'</div>'+
+      '<div class="row between" style="border-top:1px solid var(--line);padding-top:14px"><button type="button" class="btn btn-ghost" data-a="to-explore">Back to suggestions</button><button type="submit" class="btn btn-primary">Submit final concept</button></div></form>';
+  }
+  return '<main><div class="wrap"><div class="cols"><section class="side" style="max-width:460px"><p class="eyebrow">Finish</p><h1 style="font-size:32px">Choose your final concept</h1>'+list+'</section><section class="mainc">'+form+'<p class="status" id="savestate">'+esc(saveLabel())+'</p></section></div></div></main>';
+}
+
+function viewDone(){
+  var chosen=S.ideas.find(function(i){return i.id===S.final.ideaId;})||{};
+  var opened=Object.keys(S.works).filter(function(k){return !S.works[k].own;}).length;
+  return '<main><div class="wrap"><div class="panel" style="max-width:760px;margin:0 auto"><p class="eyebrow">Session complete</p><h1 style="font-size:34px">Thank you</h1>'+
+    '<p class="lead">Your final concept is saved. Please hand the device back to the facilitator.</p>'+
+    '<div class="recap"><b>'+esc(chosen.name||"Final concept")+'</b><p>'+esc(chosen.text||"")+'</p></div>'+
+    '<p class="muted tnum" style="font-size:14px">'+S.ideas.length+' ideas · '+S.shown.length+' cards shown · '+opened+' cards worked on · '+S.events.length+' logged events</p>'+
+    '<p class="status" id="savestate">'+esc(saveLabel())+'</p>'+
+    '<div class="row"><button type="button" class="btn btn-primary" data-a="new">Start a new session</button><button type="button" class="btn btn-outline" data-a="export-one">Export this session (CSV)</button></div>'+
+    (V.csvText?csvBox():'')+'</div></div></main>';
+}
+
+function csvBox(){return '<div class="field"><label for="csvout">CSV</label><textarea id="csvout" class="area" style="min-height:160px;font-family:ui-monospace,Menlo,monospace;font-size:12px" readonly>'+esc(V.csvText)+'</textarea><div class="row"><button type="button" class="btn btn-outline" data-a="copy-csv">Copy CSV</button></div></div>';}
+
+function allSessions(){
+  if(sessionsLive)return sessionsLive;
+  return lsGet("iw-history")||[];
+}
+function flawSummary(s){
+  var n={exaggerate:0,control:0,impractical:0,mix:0};
+  Object.keys(s.picked||{}).forEach(function(id){var d=s.picked[id];if(n[d]!=null)n[d]++;});
+  var parts=[];if(n.exaggerate)parts.push("Extreme "+n.exaggerate);if(n.control)parts.push("Who decides "+n.control);if(n.impractical)parts.push("Unrealistic "+n.impractical);if(n.mix)parts.push("Mixed "+n.mix);
+  return parts.length?parts.join(", "):"None yet";
+}
+function viewResearch(){
+  var tabs='<div class="tabs" role="tablist" aria-label="Researcher sections"><button type="button" role="tab" class="tab" aria-selected="'+(V.researchTab==="sessions")+'" data-a="rtab" data-v="sessions">Sessions</button><button type="button" role="tab" class="tab" aria-selected="'+(V.researchTab==="pool")+'" data-a="rtab" data-v="pool">Card pool</button></div>';
+  var body;
+  if(V.researchTab==="sessions"&&REMOTE&&!RKEY){
+    body='<form id="rkeyform" class="panel" style="gap:14px;max-width:460px"><h2 style="font-size:22px">Enter the researcher key</h2><p class="muted" style="font-size:14px">Session data is protected. Use the key you set in the Apps Script.</p><div class="field"><label for="rkey">Researcher key</label><input id="rkey" class="input" type="password" autocomplete="off"></div><div class="row"><button type="submit" class="btn btn-primary">Show sessions</button></div></form>';
+  } else if(V.researchTab==="sessions"){
+    var list=allSessions();
+    var src=sessionsLive?"Showing sessions from the Google Sheet.":(REMOTE&&RKEY?"Loading sessions from the Google Sheet…":"Not connected to the Google Sheet. Showing sessions saved on this device.");
+    body='<div class="row between"><p class="muted" style="font-size:14px">'+src+'</p><button type="button" class="btn btn-outline" data-a="export-all"'+(list.length?'':' disabled')+'>Export all sessions (CSV)</button></div>';
+    if(!list.length)body+='<div class="panel empty"><h2 style="font-size:22px">No sessions yet</h2><p class="lead">Sessions appear here as soon as someone starts one from the setup screen.</p><button type="button" class="btn btn-primary" data-a="home">Go to setup</button></div>';
+    else body+='<div class="tablebox"><table><thead><tr><th scope="col">Participant</th><th scope="col">Task</th><th scope="col">Flaws picked</th><th scope="col">Started</th><th scope="col">Ideas</th><th scope="col">Cards shown</th><th scope="col">Final concept</th><th scope="col">Status</th><th scope="col">Export</th></tr></thead><tbody>'+
+      list.map(function(s){var fin=(s.ideas||[]).find(function(i){return s.final&&i.id===s.final.ideaId;});
+        return '<tr><td><b>'+esc(s.participant)+'</b></td><td>'+esc((TASKS[s.task]||{}).short||s.task)+'</td><td>'+esc(flawSummary(s))+'</td><td class="tnum">'+esc(new Date(s.startedAt).toLocaleString())+'</td><td class="tnum">'+(s.ideas||[]).length+'</td><td class="tnum">'+(s.shown||[]).length+'</td><td style="max-width:260px">'+esc(fin?(fin.name||fin.text):"Not chosen")+'</td><td>'+(s.submitted?'<span class="okc">Submitted</span>':'<span class="muted">In progress</span>')+'</td><td><button type="button" class="btn btn-ghost" style="min-height:36px;padding:0 12px" data-a="export-sid" data-id="'+esc(s.sid)+'">CSV</button></td></tr>';}).join("")+'</tbody></table></div>';
+    if(V.csvText)body+=csvBox();
+  } else {
+    var rows=CARDS.filter(function(c){return V.poolTask==="all"||c.task===V.poolTask;});
+    body='<div class="row"><span class="muted" style="font-weight:600">Task</span>'+[["all","All"],["t1","Task 1"],["t2","Task 2"]].map(function(o){return '<button type="button" class="vchip" style="min-height:38px;padding:0 14px" aria-pressed="'+(V.poolTask===o[0])+'" data-a="ptask" data-v="'+o[0]+'">'+o[1]+'</button>';}).join("")+'<span class="muted tnum" style="font-size:13px">'+rows.length+' cards</span></div>'+
+      '<div class="tablebox"><table><thead><tr><th scope="col">ID</th><th scope="col">Task</th><th scope="col">Distortion</th><th scope="col">Source</th><th scope="col">Title</th><th scope="col" style="width:40%">Card text, as participants see it</th></tr></thead><tbody>'+
+      rows.map(function(c){return '<tr><td><b>'+c.id+'</b></td><td>'+(c.task==="t1"?"1":"2")+'</td><td>'+(c.d?TWISTS[c.d].rname:'<span class="muted">None</span>')+'</td><td>'+(c.src||'Example')+'</td><td>'+esc(c.title)+'</td><td>'+esc(c.text)+'</td></tr>';}).join("")+'</tbody></table></div>'+
+      '<p class="muted" style="font-size:13px">Each card is a workable idea with one deliberate distortion, adapted from de Bono\'s provocation methods. Participants pick which flaw they want, and the system draws a card of that type.</p>';
+  }
+  return '<main><div class="wrap" style="display:flex;flex-direction:column;gap:18px"><div class="row between"><div><p class="eyebrow">Hidden from participants</p><h1 style="font-size:32px">Researcher view</h1></div><button type="button" class="btn btn-ghost" data-a="home">Back to setup</button></div>'+tabs+body+'</div></main>';
+}
+
+/* ---------- render ---------- */
+function render(){
+  var html=topbar();
+  if(V.view==="setup")html+=viewSetup();
+  else if(V.view==="research")html+=viewResearch();
+  else if(S.submitted)html+=viewDone();
+  else if(S.step==="ideas")html+=viewIdeas();
+  else if(S.step==="explore")html+=viewExplore();
+  else html+=viewFinal();
+  app.innerHTML=html;
+  tick();
+}
+function tick(){
+  var el=document.getElementById("timer");if(!el)return;
+  var s=Math.floor((Date.now()-stepStart)/1000);el.textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0")+" in this step";
+}
+setInterval(tick,1000);
+
+/* ---------- events ---------- */
+app.addEventListener("click",function(e){
+  var b=e.target.closest("[data-a]");if(!b||b.disabled)return;
+  var a=b.getAttribute("data-a"), v=b.getAttribute("data-v"), id=b.getAttribute("data-id");
+  if(a==="twist"||a==="pick-final"||a==="nothing")return; // handled on change
+  switch(a){
+    case "home": stopSessionsSub(); V.view="setup"; V.csvText=null; render(); break;
+    case "research": V.view="research"; V.csvText=null; startSessionsSub(); render(); break;
+    case "resume": S=lsGet("iw-current"); V.view="session"; stepStart=Date.now(); log("session_resumed","",""); render(); break;
+    case "new": S=null; try{localStorage.removeItem("iw-current");}catch(_){ } V.view="setup"; V.csvText=null; render(); break;
+    case "to-explore": go("explore"); break;
+    case "to-final": go("final"); break;
+    case "mode": S.mode=v; log("mode_change",v,""); render(); break;
+    case "draw-twist": drawTwist(); break;
+    case "another": drawAnother(); break;
+    case "own": openOwn(); break;
+    case "open": openCard(id); break;
+    case "reject": S.rejected.push(id); log("card_rejected","",id); if(S.activeKey===id)S.activeKey=null; render(); break;
+    case "reject-active": var w=activeWork(); if(w){snapshot(w);S.rejected.push(w.key);log("card_rejected","from_workspace",w.key);S.activeKey=null;render();} break;
+    case "tab": setTab(v); break;
+    case "chip": var w2=activeWork(); if(w2){w2.critique=(w2.critique?w2.critique.replace(/\s*$/,"")+"\n":"")+v+" ";log("prompt_used",v,w2.key);render();var ta=document.getElementById("f-critique");if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);}} break;
+    case "scr": case "scrgo": var ak=S&&S.activeKey; if(!ak)break; V.scr=V.scr||{}; var n=screensFor(ak).length;
+      var ni=a==="scr"?(V.scr[ak]||0)+Number(v):Number(v); ni=Math.max(0,Math.min(n-1,ni)); V.scr[ak]=ni; log("screen_view",String(ni+1),ak); render(); break;
+    case "ver": V.previewV=V.previewV===Number(v)?null:Number(v); render(); break;
+    case "save-idea": saveToIdeas(); break;
+    case "rtab": V.researchTab=v; V.csvText=null; render(); break;
+    case "ptask": V.poolTask=v; render(); break;
+    case "export-all": offerCsv(allSessions(),"idea-workbench-sessions.csv"); break;
+    case "export-sid": var s=allSessions().find(function(x){return x.sid===id;}); if(s)offerCsv([s],"session-"+(s.participant||"anon")+".csv"); break;
+    case "export-one": offerCsv([S],"session-"+S.participant+".csv"); break;
+    case "copy-csv": var t=document.getElementById("csvout"); if(!t)break;
+      try{navigator.clipboard.writeText(t.value).then(function(){toast("CSV copied.");},function(){t.select();toast("Press Ctrl+C or Cmd+C to copy.");});}catch(_){t.select();toast("Press Ctrl+C or Cmd+C to copy.");}
+      break;
+  }
+});
+app.addEventListener("change",function(e){
+  var t=e.target;
+  if(t.name==="task")V.setupTask=t.value;
+  if(t.name==="cond")V.setupCond=t.value;
+  if(!S)return;
+  var a=t.getAttribute("data-a");
+  if(a==="twist"){S.twist=t.value;log("flaw_selected",t.value,"");render();}
+  if(a==="pick-final"){S.final.ideaId=t.value;log("final_selected","",(S.ideas.find(function(i){return i.id===t.value;})||{}).cardId||"");render();}
+  if(a==="nothing"){var w=activeWork();if(w){w.nothing=t.checked;log("nothing_worth_keeping",String(t.checked),w.key);render();}}
+});
+app.addEventListener("input",function(e){
+  var t=e.target;
+  if(t.id==="pcode"){V.setupCode=t.value;return;}
+  if(!S)return;
+  var f=t.getAttribute("data-f"), ff=t.getAttribute("data-ff");
+  if(f){var w=activeWork();if(w){w[f]=t.value;persist();}}
+  if(ff){S.final[ff]=t.value;persist();}
+});
+app.addEventListener("focusout",function(e){
+  var t=e.target;if(!S)return;
+  var f=t.getAttribute&&t.getAttribute("data-f");
+  if(f&&t.value)log("text_edit",f+" ("+t.value.length+" chars)",S.activeKey&&!S.works[S.activeKey].own?S.activeKey:"");
+});
+app.addEventListener("submit",function(e){
+  e.preventDefault();
+  var f=e.target;
+  if(f.id==="rkeyform"){
+    var k=(document.getElementById("rkey").value||"").trim();if(!k)return;
+    RKEY=k;sessionsLive=null;render();startSessionsSub();
+  } else if(f.id==="setup"){
+    S=newSession((V.setupCode||"").trim(),V.setupTask,"bad");V.view="session";stepStart=Date.now();
+    log("session_start",S.task+" / "+S.condition,"");render();
+  } else if(f.id==="addidea"){
+    var inp=document.getElementById("newidea");var txt=(inp.value||"").trim();if(!txt)return;
+    S.ideas.push({id:uid("i"),text:txt,name:"",source:"solo",cardId:""});log("idea_added",txt,"");render();
+    var again=document.getElementById("newidea");if(again)again.focus();
+  } else if(f.id==="finalform"){
+    var fi=S.final;if(!fi.ideaId){toast("Pick an idea first.");return;}
+    if(!fi.who.trim()||!fi.how.trim()){toast("Fill in who it is for and how it works.");return;}
+    S.submitted=true;log("submitted","",(S.ideas.find(function(i){return i.id===fi.ideaId;})||{}).cardId||"");
+    clearTimeout(saveTimer);pushRemote();render();window.scrollTo(0,0);
+  }
+});
+
+/* ---------- researcher live list ---------- */
+function startSessionsSub(){
+  if(!REMOTE||!RKEY)return;
+  fetch(ENDPOINT+"?key="+encodeURIComponent(RKEY)).then(function(r){return r.json();}).then(function(d){
+    sessionsLive=Array.isArray(d)?d:null;if(!sessionsLive)toast("Could not load sessions. Check the researcher key.");
+    if(V.view==="research")render();
+  },function(){sessionsLive=null;if(V.view==="research")render();});
+}
+function stopSessionsSub(){if(unsubSessions){try{unsubSessions();}catch(e){}}unsubSessions=null;}
+
+/* ---------- boot ---------- */
+render();
+(async function(){
+  try{
+    var qp=(QS.get("p")||"").trim(), qt=QS.get("task");
+    if(qp&&(qt==="t1"||qt==="t2")){
+      var prev=lsGet("iw-current");
+      if(prev&&!prev.submitted&&prev.participant===qp&&prev.task===qt){S=prev;log("session_resumed","","");}
+      else{S=newSession(qp,qt,"bad");log("session_start",S.task+" / "+S.condition+" / via link","");}
+      V.view="session";stepStart=Date.now();render();
+    }
+  }catch(e){}
+  cap.tried=true;
+  if(S)pushRemote();
+  if(V.view==="research"){startSessionsSub();render();}
+  else setSaveState(saveState==="idle"&&S?(REMOTE?"idle":"local"):saveState);
+})();
+})();
+</script>
+</body>
+</html>
